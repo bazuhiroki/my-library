@@ -1,5 +1,5 @@
 // 蔵書データと「読んだ」印の管理
-import READ_BOOKS from './data/read-books.json';
+import READ_BOOKS from './read-books.json';
 
 // 借りるボタンの行き先（葛飾区立図書館）。jsessionid を含む URL は時間が経つと切れることがあるので、
 // 切れていたらここを書き換える。

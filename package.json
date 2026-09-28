@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "import-csv": "node scripts/import-csv.mjs"
+    "import-csv": "node import-csv.mjs"
   },
   "dependencies": {
     "three": "0.128.0"

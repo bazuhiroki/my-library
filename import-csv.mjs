@@ -29,5 +29,5 @@ for (const r of rows.slice(h + 1)) {
   const a = (r[ai] || '').split('　')[0].replace(/／.*/, '').trim();
   out.push([t, a, (r[di] || '').trim()]);
 }
-writeFileSync(new URL('../src/data/read-books.json', import.meta.url), JSON.stringify(out));
+writeFileSync(new URL('./read-books.json', import.meta.url), JSON.stringify(out));
 console.log(`${out.length}冊を src/data/read-books.json に書き出しました`);
