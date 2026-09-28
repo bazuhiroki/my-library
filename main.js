@@ -12,6 +12,7 @@ import { createScanner } from './scanner.js';
 import { createWishlist, lookupIsbn, coverUrl } from './wishlist.js';
 import { createWishPile, PILE } from './wishpile.js';
 import { registerWish } from './books.js';
+import { createSpineAtlas, patchSpineMaterial } from './spines.js';
 
 let renderer;
 try{renderer=new THREE.WebGLRenderer({canvas:$('c'),antialias:true,powerPreference:'high-performance'});}catch(e){$('err').style.display='flex';throw e;}
@@ -159,6 +160,13 @@ function placeNew(ri){const r=RECS[ri];if(r.primary){const s=(prizeSlots[r.prima
    lm.count=labels[wi].length;scene.add(lm);w.lm=lm;w.lbase=lm.instanceMatrix.array.slice();});
  wallMeshes.forEach(w=>w.inst.forEach((b,i)=>applyLabel(w,i,0)));}
 function applyLabel(w,i,amt){const li=w.lab[i];if(li<0)return;const m=new THREE.Matrix4();const ri=w.rec[i];if(ri>=0&&isRead(RECS[ri])){m.fromArray(w.lbase,li*16);const f=w.inst[i].face;m.elements[12]+=f*amt;m.elements[13]+=amt*.1;}else m.makeScale(0,0,0);w.lm.setMatrixAt(li,m);w.lm.instanceMatrix.needsUpdate=true;}
+// ---- 背表紙の書名
+const spineAtlas=createSpineAtlas(ANISO);patchSpineMaterial(bookMat,spineAtlas.tex);
+wallMeshes.forEach(w=>{const n=w.inst.length;w.atlasAttr=new THREE.InstancedBufferAttribute(new Float32Array(n*4),4);const sg=new Float32Array(n);w.inst.forEach((b,i)=>{sg[i]=b.face;});
+  w.mesh.geometry.setAttribute('atlasRect',w.atlasAttr);w.mesh.geometry.setAttribute('spineSign',new THREE.InstancedBufferAttribute(sg,1));});
+function setSpine(w,i){const ri=w.rec[i];if(ri<0)return;const k=spineAtlas.add(RECS[ri].t);if(k<0)return;w.atlasAttr.array.set(spineAtlas.rect(k),i*4);w.atlasAttr.needsUpdate=true;}
+wallMeshes.forEach(w=>w.rec.forEach((ri,i)=>{if(ri>=0)setSpine(w,i);}));spineAtlas.flush();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{spineAtlas.redrawAll();spineAtlas.flush();});
 // 賞の名札（東の壁の書架の上）
 {const wl=WALLS[1];wl.bays.forEach(b=>{const ps=bayPrizes[b.num];if(!ps)return;const txt=[...ps].map(p=>PRIZE_SHORT[p]||p).join('・');
   const t=textTex(txt,512,96,'800 52px "Shippori Mincho B1", serif','#1f3a2d','#efd99a');
@@ -356,7 +364,29 @@ function openBook(wi,id){if(pulled)closeBook(true);const w=wallMeshes[wi];pulled
   $('bPrize').textContent=r.prizes.map(p=>`${prizeName(p.p)}　${p.label}`).join('\n');$('bPrize').style.display=r.prizes.length?'block':'none';updateBagUI(r);
   updateReadUI(r);
   $('borrow').href=BORROW_URL;$('buy').href=amazonUrl(main,r.a);
-  $('sheet').classList.add('open');$('hint').classList.remove('on');}
+  $('sheet').querySelector('.card').scrollTop=0;
+  showIntro(r,main);
+  $('sheet').classList.remove('open');void $('sheet').offsetWidth;$('sheet').classList.add('open');$('hint').classList.remove('on');}
+// ---- 紹介（Google Books ＋ openBD）
+const introCache=new Map();let introFor=null;
+function fmtDate(d){const m=(d||'').match(/^(\d{4})(?:-(\d{2}))?/);return m?(m[2]?`${m[1]}年${+m[2]}月`:`${m[1]}年`):'';}
+function showIntro(r,main){introFor=r;
+  const img=$('bCoverImg'),glow=$('bGlow'),desc=$('bDesc'),wrap=$('bDescWrap');
+  img.classList.remove('on');img.removeAttribute('src');glow.classList.remove('on');glow.style.backgroundImage='';
+  wrap.classList.remove('full');$('bMore').style.display='none';$('bMeta').textContent='';$('info').style.display='none';
+  desc.className='loading';desc.textContent='紹介を探しています…';
+  const q=new URLSearchParams({title:r.t,author:r.a||''});const isbn=r.wishIsbn||(r.wish&&r.wish.isbn);if(isbn)q.set('isbn',isbn);
+  const key=q.toString();
+  const p=introCache.get(key)||fetch('/api/bookinfo?'+key).then(x=>x.json()).catch(()=>null);introCache.set(key,p);
+  p.then(d=>{if(introFor!==r)return;
+    if(!d||(!d.description&&!d.source)){desc.className='';desc.textContent='この本の紹介文は見つかりませんでした。';return;}
+    const src=d.isbn?`/api/cover?isbn=${d.isbn}${d.cover?'&src='+encodeURIComponent(d.cover):''}`:d.cover;
+    if(src){img.onload=()=>{img.classList.add('on');glow.style.backgroundImage=`url("${src}")`;glow.classList.add('on');};img.onerror=()=>{if(d.cover&&img.src.indexOf('/api/cover')>=0)img.src=d.cover;};img.src=src;}
+    $('bMeta').textContent=[d.publisher,fmtDate(d.publishedDate),d.pageCount?`${d.pageCount}ページ`:'',d.isbn?`ISBN ${d.isbn}`:''].filter(Boolean).join('　');
+    desc.className='';desc.textContent=(d.description||'紹介文はまだ登録されていないようです。').replace(/<[^>]+>/g,'');
+    requestAnimationFrame(()=>{if(desc.scrollHeight>desc.clientHeight+4)$('bMore').style.display='block';});
+    if(d.infoLink){$('info').href=d.infoLink;$('info').style.display='inline';}});}
+$('bMore').addEventListener('click',()=>{$('bDescWrap').classList.add('full');$('bMore').style.display='none';});
 function updateBagUI(r){const b1=$('bagBorrow'),b2=$('bagBuy');const i1=inBag('borrow',r),i2=inBag('buy',r);b1.querySelector('b').textContent=i1?'借りる本に入っています':'借りる本に入れる';b1.classList.toggle('in',i1);b2.querySelector('b').textContent=i2?'買う本に入っています':'買う本に入れる';b2.classList.toggle('in',i2);updateBagChip();}
 function updateBagChip(){const a=bagList('borrow').length,b=bagList('buy').length;const el=$('bagChip');el.textContent=a||b?`かばん　借${a}・買${b}`:'';el.style.display=a||b?'block':'none';}
 ['borrow','buy'].forEach(k=>$(k==='borrow'?'bagBorrow':'bagBuy').addEventListener('click',()=>{if(!pulled)return;const r=RECS[pulled.w.rec[pulled.id]];const added=toggleBag(k,r);updateBagUI(r);counterUI.toast(added?(k==='borrow'?'借りる本に入れました。入口の貸出カウンターへどうぞ':'買う本に入れました。入口の購入カウンターへどうぞ'):'リストから外しました');}));
@@ -484,7 +514,7 @@ $('sUndo').addEventListener('click',()=>{if(lastAdded){wishlist.remove(lastAdded
 $('scanBtn').addEventListener('click',()=>{$('scan').classList.add('open');$('sResult').classList.remove('on');scanCount=0;
   if(!scanner)scanner=createScanner({video:$('sVideo'),onCode:handleIsbn,onStatus:scanStatus});scanner.start();});
 function closeScan(){$('scan').classList.remove('open');if(scanner)scanner.stop();}
-$('sClose').addEventListener('click',closeScan);
+$('scanClose').addEventListener('click',closeScan);
 $('sManualGo').addEventListener('click',()=>{const v=$('sManual').value.replace(/[^0-9Xx]/g,'');const d=v.length===10?null:v;
   if(v.length===13&&/^97[89]/.test(v)){handleIsbn(v);$('sManual').value='';}else if(v.length===10){fetch('/api/isbn?isbn='+v).then(r=>r.ok?r.json():null).then(i=>{if(i)handleIsbn(i.isbn);else scanStatus('そのISBNの本が見つかりませんでした');});$('sManual').value='';}else scanStatus('ISBNは978から始まる13桁（または10桁）で入れてね');});
 $('sManual').addEventListener('keydown',e=>{if(e.key==='Enter')$('sManualGo').click();});
@@ -494,7 +524,7 @@ loadCast(p=>{$('loadNote').textContent=`館の人々が集まっています… 
   .catch(e=>{console.error(e);$('loadNote').textContent='登場人物を読み込めませんでした';});
 // Notion と公式発表から最新の蔵書を取り込む（取れなければ同梱のデータのまま）
 fetch('/api/books').then(r=>r.ok?r.json():null).then(d=>{if(!d||!Array.isArray(d.rows))return;
-  const added=mergeRemote(d.rows);let placed=0;added.forEach(ri=>{if(placeNew(ri))placed++;});
+  const added=mergeRemote(d.rows);let placed=0;added.forEach(ri=>{if(placeNew(ri)){placed++;const [wi,i]=recLoc[ri];setSpine(wallMeshes[wi],i);}});spineAtlas.flush();
   wallMeshes.forEach(w=>w.inst.forEach((b,i)=>{if(w.rec[i]>=0)applyLabel(w,i,0);}));
   if(placed)counterUI.toast(`新しく${placed}冊が文学賞の書架に並びました`);}).catch(()=>{});
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});

@@ -54,20 +54,27 @@
 </div>
 
 <div id="sheet" role="dialog" aria-labelledby="bTitle">
+  <div id="bGlow" aria-hidden="true"></div>
   <div class="card">
-    <div class="bk">
-      <div id="cover"></div>
-      <div style="flex:1;min-width:0">
-        <h2 id="bTitle"></h2><div id="bSub"></div><div id="bAuthor"></div><div id="bLoc"></div><div id="bPrize"></div><div id="bRead"></div>
+    <button id="putBack" type="button" aria-label="棚に戻す">棚に戻す</button>
+    <div class="hero">
+      <div id="bCoverWrap"><div id="cover"></div><img id="bCoverImg" alt=""></div>
+      <div class="hinfo">
+        <div id="bPrize"></div>
+        <h2 id="bTitle"></h2><div id="bSub"></div>
+        <div id="bAuthor"></div>
+        <div id="bMeta"></div>
+        <div id="bRead"></div>
       </div>
     </div>
+    <div id="bDescWrap"><p id="bDesc"></p><button id="bMore" type="button">続きを読む</button></div>
+    <div id="bLoc"></div>
     <div class="acts">
       <button type="button" class="act bag" id="bagBorrow"><b>借りる本に入れる</b><span>入口の貸出カウンターへ持っていく</span></button>
       <button type="button" class="act bag" id="bagBuy"><b>買う本に入れる</b><span>入口の購入カウンターへ持っていく</span></button>
     </div>
-    <div class="quick"><a id="borrow" target="_blank" rel="noopener">今すぐ図書館のサイトへ</a><a id="buy" target="_blank" rel="noopener">今すぐAmazonへ</a></div>
+    <div class="quick"><a id="borrow" target="_blank" rel="noopener">今すぐ図書館のサイトへ</a><a id="info" target="_blank" rel="noopener">Google ブックスで見る</a><a id="buy" target="_blank" rel="noopener">今すぐAmazonへ</a></div>
     <button id="markRead" type="button" class="mark">読んだ本にする</button>
-    <button id="putBack" type="button">棚に戻す</button>
   </div>
 </div>
 
@@ -85,7 +92,7 @@
 <section id="scan" role="dialog" aria-label="本のバーコードを読む">
   <video id="sVideo" muted playsinline></video>
   <div class="sframe" aria-hidden="true"><i></i></div>
-  <div class="stop"><div><b>本屋さんで読む</b><span id="sStatus"></span></div><button id="sClose" type="button">閉じる</button></div>
+  <div class="stop"><div><b>本屋さんで読む</b><span id="sStatus"></span></div><button id="scanClose" type="button">閉じる</button></div>
   <div class="sbottom">
     <div id="sResult"><img id="sCover" alt=""><div class="sr"><b id="sTitle"></b><span id="sAuthor"></span><em id="sMsg"></em></div><button id="sUndo" type="button">取り消す</button></div>
     <div class="sman"><input id="sManual" inputmode="numeric" placeholder="ISBNを手で入れる（978…）" autocomplete="off"><button id="sManualGo" type="button">積む</button></div>

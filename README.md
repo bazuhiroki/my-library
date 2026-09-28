@@ -28,6 +28,7 @@ counters.js              貸出・購入カウンター（家具・近づいた�
 scanner.js               バーコード読み取り（Android は BarcodeDetector、iPhone は ZXing）
 wishlist.js              読みたい本リスト（Notion と同期、つながらないときは端末に保存）
 wishpile.js              読みたい本の台（3D）
+spines.js                背表紙の書名（縦書きのテクスチャアトラス）
 figures.js               竜
 textures.js              天井画・壁画・薔薇窓などを canvas で描くテクスチャ
 books.js                 蔵書のまとめ（貸出履歴＋文学賞）、読んだ印、かばん、検索
@@ -38,6 +39,7 @@ api/books.js             Notion と公式発表から最新の蔵書を返す
 api/cron-prizes.js       毎日、芥川賞・直木賞の最新受賞作を Notion に追加する
 api/isbn.js              ISBN から書誌を調べる（openBD → Google Books → 国立国会図書館）
 api/cover.js             表紙画像を同じドメインから配る
+api/bookinfo.js          本の紹介（Google Books で特定し、openBD の内容紹介で補う）
 api/wishlist.js          Notion「読書管理」の読み書き
 vercel.json              上の定期実行の設定（毎朝7時・日本時間）
 ```
@@ -47,6 +49,7 @@ vercel.json              上の定期実行の設定（毎朝7時・日本時間
 | 名前 | 中身 |
 |---|---|
 | `NOTION_TOKEN` | Notion インテグレーションのシークレット |
+| `GOOGLE_BOOKS_API_KEY` | 省略可。Google Books API のキー。なくても動くが、回数制限にかかりにくくなる |
 | `APP_PASSCODE` | 任意の合言葉。読みたい本の追加・変更のときに一度だけ聞かれる |
 | `CRON_SECRET` | 任意の長い文字列（定期実行を他人に叩かれないため） |
 | `NOTION_DATA_SOURCE_ID` | 省略可。既定は「小説作成賞」DB |

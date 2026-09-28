@@ -128,7 +128,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .stop>div{background:var(--glass-strong);border:1px solid var(--line);border-radius:14px;padding:10px 13px;display:flex;flex-direction:column;gap:3px;min-width:0}
 .stop b{font-family:var(--display);font-size:16px}
 .stop span{font-size:12px;color:var(--text-dim);line-height:1.5}
-#sClose{height:46px;padding:0 16px;border-radius:14px;border:1px solid var(--line);background:var(--glass-strong);color:var(--text);font-family:var(--ui);font-size:14px;cursor:pointer;flex-shrink:0}
+#scanClose{height:46px;padding:0 16px;border-radius:14px;border:1px solid var(--line);background:var(--glass-strong);color:var(--text);font-family:var(--ui);font-size:14px;cursor:pointer;flex-shrink:0}
 .sbottom{position:absolute;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);display:flex;flex-direction:column;gap:10px;max-width:560px;margin:0 auto}
 #sResult{display:none;align-items:center;gap:12px;background:var(--glass-strong);border:1px solid rgba(210,170,85,.5);border-radius:16px;padding:12px}
 #sResult.on{display:flex}
@@ -163,3 +163,27 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .wact button{height:36px;padding:0 11px;border-radius:10px;border:1px solid rgba(210,170,85,.45);background:rgba(210,170,85,.08);color:#EBD08F;font-family:var(--ui);font-size:12px;cursor:pointer}
 .wact .wrm{border-color:var(--line);background:transparent;color:var(--text-dim)}
 #results .thumb{width:30px;height:42px;object-fit:cover;border-radius:3px;flex-shrink:0;background:#2a2018}
+
+/* ---- 本を取り出したときの紹介 ---- */
+#sheet .card{position:relative;max-height:84vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px 18px 14px;overscroll-behavior:contain}
+#bGlow{position:absolute;left:12px;right:12px;bottom:12px;top:0;max-width:520px;margin:0 auto;border-radius:22px;background-size:cover;background-position:center;filter:blur(38px) saturate(1.4);opacity:0;transform:scale(.9);transition:opacity .8s,transform .8s;pointer-events:none}
+#sheet.open #bGlow.on{opacity:.55;transform:scale(1.04)}
+#putBack{position:absolute;right:12px;top:12px;margin:0;width:auto;height:36px;padding:0 12px;border-radius:11px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--text-dim);font-family:var(--ui);font-size:12px;cursor:pointer;z-index:2}
+.hero{display:flex;gap:16px;align-items:flex-end;padding-top:6px}
+#bCoverWrap{position:relative;width:118px;height:168px;flex-shrink:0;border-radius:6px;box-shadow:0 18px 40px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.06);overflow:hidden;transform:translateY(24px) scale(.72) rotate(-4deg);opacity:0;transition:transform .7s cubic-bezier(.2,1.2,.3,1),opacity .4s}
+#sheet.open #bCoverWrap{transform:none;opacity:1}
+#bCoverWrap #cover{position:absolute;inset:0;width:auto;height:auto;border-radius:0;box-shadow:none;font-size:13px}
+#bCoverImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .6s}
+#bCoverImg.on{opacity:1}
+.hinfo{flex:1;min-width:0;padding-right:40px}
+#bTitle{font-size:20px;line-height:1.35;margin:4px 0 0}
+#bPrize{display:none;margin:0;font-size:11.5px;line-height:1.5;color:#EBD08F;white-space:pre-line;font-family:var(--display);font-weight:800}
+#bMeta{font-size:11.5px;color:var(--text-dim);margin-top:6px;line-height:1.6}
+#bRead{margin-top:8px}
+#bDescWrap{margin-top:16px;position:relative}
+#bDesc{margin:0;font-family:var(--display);font-size:13.5px;line-height:1.95;color:#e9dfcd;white-space:pre-line;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
+#bDescWrap.full #bDesc{-webkit-line-clamp:unset;display:block}
+#bDesc.loading{color:var(--text-dim);font-family:var(--ui);font-size:12px}
+#bMore{display:none;margin-top:4px;background:none;border:none;color:#EBD08F;font-family:var(--ui);font-size:12px;padding:6px 0;cursor:pointer}
+#bLoc{font-size:11px;color:var(--text-dim);margin-top:12px}
+.quick{flex-wrap:wrap}
