@@ -59,8 +59,8 @@ export async function lookup(isbn) {
 
 // 表紙画像の候補（先に見つかったものを使う）
 export const coverCandidates = (isbn, known) => [
-  known,
-  `https://ndlsearch.ndl.go.jp/thumbnail/${isbn}.jpg`,
   `https://cover.openbd.jp/${isbn}.jpg`,
+  `https://ndlsearch.ndl.go.jp/thumbnail/${isbn}.jpg`,
+  known,
 ].filter(Boolean);
-export { get };
+export { get, splitAuthors };
