@@ -10,6 +10,8 @@
     "import-csv": "node import-csv.mjs"
   },
   "dependencies": {
+    "@zxing/browser": "^0.1.5",
+    "@zxing/library": "^0.21.3",
     "three": "0.128.0"
   },
   "devDependencies": {

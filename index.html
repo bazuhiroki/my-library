@@ -16,8 +16,9 @@
 <div id="flash"></div><div id="warp"></div>
 
 <div id="topbar" class="hud">
-  <div id="place" class="chip"><div class="name">My Library</div><div class="sub" id="zone">大扉の前</div></div>
+  <div class="left"><div id="place" class="chip"><div class="name">My Library</div><div class="sub" id="zone">大扉の前</div></div><div id="bagChip" class="chip small"></div><button id="wishChip" type="button" class="chip small"></button></div>
   <div class="right">
+    <button id="scanBtn" type="button" aria-label="本のバーコードを読む"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><path d="M8 8v8M11 8v8M13.5 8v8M16 8v8"/></svg></button>
     <button id="searchBtn" type="button" aria-label="本を探す"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.6" y2="16.6"/></svg></button>
     <div id="clock" class="chip"><div class="t" id="clockT">--:--</div><div class="w" id="clockW">晴れ</div></div>
   </div>
@@ -57,18 +58,46 @@
     <div class="bk">
       <div id="cover"></div>
       <div style="flex:1;min-width:0">
-        <h2 id="bTitle"></h2><div id="bSub"></div><div id="bAuthor"></div><div id="bLoc"></div><div id="bRead"></div>
+        <h2 id="bTitle"></h2><div id="bSub"></div><div id="bAuthor"></div><div id="bLoc"></div><div id="bPrize"></div><div id="bRead"></div>
       </div>
     </div>
     <div class="acts">
-      <a class="act borrow" id="borrow" target="_blank" rel="noopener"><b>図書館で借りる</b><span>葛飾区立図書館へ</span></a>
-      <a class="act buy" id="buy" target="_blank" rel="noopener"><b>Amazonで買う</b><span>手元に置いておく</span></a>
+      <button type="button" class="act bag" id="bagBorrow"><b>借りる本に入れる</b><span>入口の貸出カウンターへ持っていく</span></button>
+      <button type="button" class="act bag" id="bagBuy"><b>買う本に入れる</b><span>入口の購入カウンターへ持っていく</span></button>
     </div>
+    <div class="quick"><a id="borrow" target="_blank" rel="noopener">今すぐ図書館のサイトへ</a><a id="buy" target="_blank" rel="noopener">今すぐAmazonへ</a></div>
     <button id="markRead" type="button" class="mark">読んだ本にする</button>
     <button id="putBack" type="button">棚に戻す</button>
   </div>
 </div>
 
+<button id="counterBtn" type="button"></button>
+<section id="counter" role="dialog" aria-labelledby="cTitle">
+  <div class="card">
+    <div class="chead"><h2 id="cTitle"></h2><button id="cClose" type="button">閉じる</button></div>
+    <p id="cSpeech"></p>
+    <ul id="cList"></ul>
+    <p id="cEmpty">まだ何も持ってきていません。</p>
+    <div class="cacts"><button id="cCopy" type="button">書名をまとめてコピー</button><button id="cClear" type="button">リストを空にする</button></div>
+  </div>
+</section>
+<div id="toast" role="status"></div>
+<section id="scan" role="dialog" aria-label="本のバーコードを読む">
+  <video id="sVideo" muted playsinline></video>
+  <div class="sframe" aria-hidden="true"><i></i></div>
+  <div class="stop"><div><b>本屋さんで読む</b><span id="sStatus"></span></div><button id="sClose" type="button">閉じる</button></div>
+  <div class="sbottom">
+    <div id="sResult"><img id="sCover" alt=""><div class="sr"><b id="sTitle"></b><span id="sAuthor"></span><em id="sMsg"></em></div><button id="sUndo" type="button">取り消す</button></div>
+    <div class="sman"><input id="sManual" inputmode="numeric" placeholder="ISBNを手で入れる（978…）" autocomplete="off"><button id="sManualGo" type="button">積む</button></div>
+  </div>
+</section>
+<section id="wish" role="dialog" aria-labelledby="wTitle">
+  <div class="card">
+    <div class="chead"><h2 id="wTitle">読みたい本の台</h2><button id="wClose" type="button">閉じる</button></div>
+    <p id="wNote"></p>
+    <ul id="wList"></ul>
+  </div>
+</section>
 <div id="intro"><div class="in">
   <h1>My Library</h1>
   <p>気がつくと、竜の飛ぶ国の大図書館にいた。窓の外では騎士が見回り、魔導士が杖を振るう。館内では司祭と賢者が静かに頁をめくっている。</p>
@@ -76,9 +105,12 @@
     <li><span>歩く</span>　画面左下をなぞる（PCは WASD / 矢印キー）</li>
     <li><span>見回す</span>　画面をドラッグ</li>
     <li><span>本を取る</span>　背表紙をタップ。金のラベルは読んだ本（自分で付け外しもできる）</li>
-    <li><span>探す</span>　右上の虫めがね。選ぶとその棚まで一瞬で飛ぶ</li>
+    <li><span>探す</span>　右上の虫めがね。「芥川賞」など賞の名前でも探せる</li>
+    <li><span>借りる・買う</span>　本をかばんに入れて、入口のカウンターへ</li>
+    <li><span>本屋さんで</span>　右上のカメラで本のバーコードを読むと、読みたい本の台に積まれる</li>
   </ul>
   <button id="enter" type="button">図書館に入る</button>
+  <p id="loadNote" class="note"></p>
 </div></div>
 <div id="err"><p>この端末では3D表示を開始できませんでした。別のブラウザでお試しください。</p></div>
 <script type="module" src="/main.js"></script>

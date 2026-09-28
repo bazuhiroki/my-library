@@ -4,7 +4,14 @@ import './style.css';
 import { $, rand, pick, clamp, lerp, smooth, isTouch } from './util.js';
 import { createTextures } from './textures.js';
 import { createFigureKit } from './figures.js';
-import { READ_BOOKS, RECS, BORROW_URL, amazonUrl, isRead, setRead, readCount, searchBooks } from './books.js';
+import { RECS, BORROW_URL, amazonUrl, isRead, setRead, readCount, searchBooks, mergeRemote, PRIZE_ORDER, PRIZE_SHORT, prizeName, inBag, toggleBag, bagList } from './books.js';
+import { loadCast } from './characters.js';
+import { createPeople } from './people.js';
+import { COUNTERS, buildCounters, createCounterUI } from './counters.js';
+import { createScanner } from './scanner.js';
+import { createWishlist, lookupIsbn, coverUrl } from './wishlist.js';
+import { createWishPile, PILE } from './wishpile.js';
+import { registerWish } from './books.js';
 
 let renderer;
 try{renderer=new THREE.WebGLRenderer({canvas:$('c'),antialias:true,powerPreference:'high-performance'});}catch(e){$('err').style.display='flex';throw e;}
@@ -128,19 +135,36 @@ WALLS.forEach(wl=>{
 });
 {const pm=new THREE.InstancedMesh(new THREE.BoxGeometry(0.47,6.25,0.1),postMat,posts.length);posts.forEach((p,i)=>{dummy.position.set(p[0],3.12,p[1]);dummy.scale.set(1,1,1);dummy.rotation.set(0,0,0);dummy.updateMatrix();pm.setMatrixAt(i,dummy.matrix);});pm.castShadow=true;pm.receiveShadow=true;scene.add(pm);
  const bm=new THREE.InstancedMesh(new THREE.CylinderGeometry(0.012,0.012,0.88,5),M.iron,balusters.length);balusters.forEach((p,i)=>{dummy.position.set(p[0],3.86,p[1]);dummy.updateMatrix();bm.setMatrixAt(i,dummy.matrix);});scene.add(bm);}
-// assign records to reachable lower-tier books
-const recLoc=new Array(RECS.length);
-{const cand=[];wallMeshes.forEach((w,wi)=>w.inst.forEach((b,i)=>{if(b.tier==='low'&&b.level>=2&&b.level<=5)cand.push([wi,i]);}));
- for(let i=cand.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cand[i],cand[j]]=[cand[j],cand[i]];}
- const labels=[[],[]];
- RECS.forEach((r,ri)=>{const c=cand[ri];if(!c)return;const [wi,i]=c;const w=wallMeshes[wi];w.rec[i]=ri;recLoc[ri]=c;
-   {const b=w.inst[i];w.lab[i]=labels[wi].length;labels[wi].push({x:b.x+b.face*b.sx/2+b.face*0.003,y:b.y-b.sy/2+0.045,z:b.z,t:b.sz*.72});}});
+// ---- 本の置き場所：西の壁＝貸出履歴と未読、東の壁＝文学賞（賞ごと・新しい回から）
+const recLoc=[];
+const nearCounter=b=>b.z>16.3&&b.z<20.5;
+const slotsW=[],slotsE=[];
+wallMeshes.forEach((w,wi)=>w.inst.forEach((b,i)=>{if(b.tier==='low'&&b.level>=2&&b.level<=5&&!nearCounter(b))(wi===0?slotsW:slotsE).push([wi,i]);}));
+for(let i=slotsW.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[slotsW[i],slotsW[j]]=[slotsW[j],slotsW[i]];}
+slotsE.sort((a,b)=>{const A=wallMeshes[1].inst[a[1]],B=wallMeshes[1].inst[b[1]];return A.bay-B.bay||B.level-A.level||(B.z-A.z);});
+const PRIZE_RESERVE=12;const prizeSlots={};const bayPrizes={};
+{let k=0;
+ PRIZE_ORDER.forEach(p=>{const recs=RECS.filter(r=>r.primary&&r.primary.p===p).sort((a,b)=>(b.primary.n-a.primary.n)||a.t.localeCompare(b.t,'ja'));
+   const n=recs.length+PRIZE_RESERVE;const slots=slotsE.slice(k,k+n);k+=n;prizeSlots[p]=slots;
+   slots.forEach(([wi,i])=>{const bay=wallMeshes[1].inst[i].bay;(bayPrizes[bay]=bayPrizes[bay]||new Set()).add(p);});
+   recs.forEach((r,j)=>place(r.id,slots[j]));});
+ prizeSlots._overflow=slotsE.slice(k);
+ let w=0;RECS.forEach(r=>{if(!r.primary)place(r.id,slotsW[w++]);});}
+function place(ri,slot){if(!slot)return false;const [wi,i]=slot;const w=wallMeshes[wi];w.rec[i]=ri;recLoc[ri]=slot;return true;}
+function placeNew(ri){const r=RECS[ri];if(r.primary){const s=(prizeSlots[r.primary.p]||[]).find(([wi,i])=>wallMeshes[wi].rec[i]<0)||prizeSlots._overflow.find(([wi,i])=>wallMeshes[wi].rec[i]<0);return place(ri,s);}return place(ri,slotsW.find(([wi,i])=>wallMeshes[wi].rec[i]<0));}
+{const labels=[[],[]];
+ wallMeshes.forEach((w,wi)=>w.inst.forEach((b,i)=>{if(b.tier==='low'&&b.level>=2&&b.level<=5){w.lab[i]=labels[wi].length;labels[wi].push({x:b.x+b.face*b.sx/2+b.face*0.003,y:b.y-b.sy/2+0.045,z:b.z,t:b.sz*.72});}}));
  wallMeshes.forEach((w,wi)=>{const lm=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),labelMat,Math.max(1,labels[wi].length));
    labels[wi].forEach((l,k)=>{dummy.position.set(l.x,l.y,l.z);dummy.scale.set(0.008,0.03,l.t);dummy.rotation.set(0,0,0);dummy.updateMatrix();lm.setMatrixAt(k,dummy.matrix);});
-   lm.count=labels[wi].length;lm.instanceMatrix.needsUpdate=true;scene.add(lm);w.lm=lm;w.lbase=lm.instanceMatrix.array.slice();});
- wallMeshes.forEach((w,wi)=>w.rec.forEach((ri,i)=>{if(ri>=0)applyLabel(w,i,0);}));}
-function applyLabel(w,i,amt){const li=w.lab[i];if(li<0)return;const m=new THREE.Matrix4();if(isRead(RECS[w.rec[i]])){m.fromArray(w.lbase,li*16);const f=w.inst[i].face;m.elements[12]+=f*amt;m.elements[13]+=amt*.1;}else m.makeScale(0,0,0);w.lm.setMatrixAt(li,m);w.lm.instanceMatrix.needsUpdate=true;}
-
+   lm.count=labels[wi].length;scene.add(lm);w.lm=lm;w.lbase=lm.instanceMatrix.array.slice();});
+ wallMeshes.forEach(w=>w.inst.forEach((b,i)=>applyLabel(w,i,0)));}
+function applyLabel(w,i,amt){const li=w.lab[i];if(li<0)return;const m=new THREE.Matrix4();const ri=w.rec[i];if(ri>=0&&isRead(RECS[ri])){m.fromArray(w.lbase,li*16);const f=w.inst[i].face;m.elements[12]+=f*amt;m.elements[13]+=amt*.1;}else m.makeScale(0,0,0);w.lm.setMatrixAt(li,m);w.lm.instanceMatrix.needsUpdate=true;}
+// 賞の名札（東の壁の書架の上）
+{const wl=WALLS[1];wl.bays.forEach(b=>{const ps=bayPrizes[b.num];if(!ps)return;const txt=[...ps].map(p=>PRIZE_SHORT[p]||p).join('・');
+  const t=textTex(txt,512,96,'800 52px "Shippori Mincho B1", serif','#1f3a2d','#efd99a');
+  const len=Math.min(2.1,(b[1]-b[0])-0.5);const pl=mesh(new THREE.PlaneGeometry(len,len*96/512),new THREE.MeshStandardMaterial({map:t,roughness:.5,emissive:0xffffff,emissiveMap:t,emissiveIntensity:.14}),FRONT-0.08,2.99,(b[0]+b[1])/2);pl.rotation.y=-Math.PI/2;});}
+{const t=textTex('貸出の記録と、まだ読んでいない本',1024,96,'800 50px "Shippori Mincho B1", serif','#1f3a2d','#efd99a');const pl=mesh(new THREE.PlaneGeometry(4.2,0.39),new THREE.MeshStandardMaterial({map:t,roughness:.5,emissive:0xffffff,emissiveMap:t,emissiveIntensity:.14}),-FRONT+0.08,2.99,0);pl.rotation.y=Math.PI/2;
+ const t2=textTex('文学賞の書架',512,96,'800 52px "Shippori Mincho B1", serif','#1f3a2d','#efd99a');}
 // ================= reading tables, globe, candles =================
 const seats=[];const lampLights=[];
 [-14,-4.5,5].forEach((tz,ti)=>{
@@ -167,6 +191,8 @@ const flameGeo=new THREE.BufferGeometry();flameGeo.setAttribute('position',new T
 const flames=new THREE.Points(flameGeo,new THREE.PointsMaterial({map:flameTex,size:0.35,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:0}));scene.add(flames);
 const vaultLights=[-10,10].map(z=>{const l=new THREE.PointLight(0xffc27a,0,26,1.4);l.position.set(0,9.5,z);scene.add(l);return l;});
 
+const counterDecor=buildCounters({scene,box,M,textTex,colliders});
+const wishPile=createWishPile({scene,M,textTex,colliders});
 // ================= lights & sky =================
 const hemi=new THREE.HemisphereLight(0xcfe0f0,0x3a2a1c,0.4);scene.add(hemi);
 const amb=new THREE.AmbientLight(0xffd9b0,0.12);scene.add(amb);
@@ -213,24 +239,8 @@ for(let k=0;k<6;k++){const w=mesh(new THREE.BoxGeometry(0.3,2,1.2),castleWin,-10
 const banners=[];[[-22,-22],[22,-22],[-22,22],[22,22],[6,6]].forEach(([x,z],i)=>{const h=i===4?72:38;mesh(new THREE.CylinderGeometry(.12,.12,6,6),M.iron,x,h,z,castle);const b=mesh(new THREE.PlaneGeometry(4,1.6,8,1),new THREE.MeshStandardMaterial({color:i%2?0x8a1f2a:0xd2aa55,side:THREE.DoubleSide,roughness:.8}),x+2,h+2,z,castle);banners.push(b);});
 
 // ================= figures =================
-const {makeFigure,walkAnim,idle,makeDragon}=createFigureKit(scene);
+const {makeDragon}=createFigureKit(scene);
 
-
-// inside walkers
-const AISLES=[[-3.4,-1],[3.4,1],[-2.6,-1],[2.6,1]];
-function spotIn(){const a=pick(AISLES);return {x:a[0]+rand(-.3,.3),z:rand(-20,20),face:a[1]};}
-const walkers=[];
-['priest','sage','priest','sage','priest','mage'].forEach(tp=>{const f=makeFigure(tp);const s=spotIn();f.position.set(s.x,0,s.z);walkers.push({f,path:[],wait:rand(0,6),spot:s,speed:rand(.7,1)});});
-function planIn(w){const n=spotIn();const c=w.f.position;if(Math.sign(n.x)===Math.sign(c.x))w.path=[{x:n.x,z:n.z}];else{const hub=Math.random()<.5?9.3:-19;w.path=[{x:c.x,z:hub},{x:n.x,z:hub},{x:n.x,z:n.z}];}w.spot=n;}
-const readers=[];
-seats.slice().sort(()=>Math.random()-.5).slice(0,9).forEach(st=>{const f=makeFigure(pick(['sage','priest','sage']));f.position.set(st.x,-0.44,st.z);f.rotation.y=st.ry;const u=f.userData;u.arms.forEach(a=>a.rotation.x=-.95);if(u.tome){u.tome.position.set(0,1.32,.36);}
-  const bk=mesh(new THREE.BoxGeometry(.22,.02,.3),new THREE.MeshStandardMaterial({color:0xf4efe2}),st.x+(st.x>0?-0.42:0.42),.84,st.z);readers.push({f,bk,ph:Math.random()*9});});
-// outside
-const outside=[];
-for(let i=0;i<3;i++){const f=makeFigure('knight');const x=W+6+i*3.2;f.position.set(x,0,rand(-30,30));outside.push({f,kind:'patrol',x,dir:Math.random()<.5?1:-1,speed:rand(1,1.3)});}
-for(let i=0;i<3;i++){const f=makeFigure('mage');f.position.set(rand(W+10,W+26),0,rand(-28,28));f.rotation.y=rand(-Math.PI,Math.PI);outside.push({f,kind:'cast',next:rand(2,7)});}
-{const a=makeFigure('swordsman'),b=makeFigure('swordsman');const cx=W+18,cz=rand(-6,6);a.position.set(cx,0,cz-1.1);b.position.set(cx,0,cz+1.1);a.rotation.y=0;b.rotation.y=Math.PI;outside.push({f:a,kind:'duel',base:cz-1.1,ph:0});outside.push({f:b,kind:'duel',base:cz+1.1,ph:Math.PI});}
-for(let i=0;i<2;i++){const f=makeFigure('swordsman');f.position.set(W+rand(28,33),0,rand(-30,30));outside.push({f,kind:'patrol',x:f.position.x,dir:i?1:-1,speed:rand(1.2,1.5)});}
 
 // ================= dragons =================
 
@@ -315,26 +325,9 @@ function updateEnv(dt,time){
   candleMesh.instanceMatrix.needsUpdate=true;flameGeo.attributes.position.needsUpdate=true;
 }
 
+let people=null;
 function updateFigures(dt,time){
-  const nW=Math.round(walkers.length*activity),nR=Math.round(readers.length*Math.max(activity,.35));
-  walkers.forEach((w,i)=>{const on=i<nW;w.f.visible=on;if(!on)return;const u=w.f.userData;
-    if(w.wait>0){w.wait-=dt;idle(w.f);const ty=w.spot.face>0?Math.PI/2:-Math.PI/2;let dr=ty-w.f.rotation.y;dr=Math.atan2(Math.sin(dr),Math.cos(dr));w.f.rotation.y+=dr*Math.min(1,dt*3);
-      u.arms[0].rotation.x=lerp(u.arms[0].rotation.x,-.8-Math.sin(time*.7+i)*.25,dt*2);u.head.rotation.x=-.1+Math.sin(time*.4+i)*.12;if(w.wait<=0)planIn(w);return;}
-    const t=w.path[0];if(!t){w.wait=rand(4,10);return;}
-    const dx=t.x-w.f.position.x,dz=t.z-w.f.position.z,d=Math.hypot(dx,dz);if(d<.08){w.path.shift();if(!w.path.length)w.wait=rand(4,10);return;}
-    const st=Math.min(d,w.speed*dt);w.f.position.x+=dx/d*st;w.f.position.z+=dz/d*st;
-    let dr=Math.atan2(dx,dz)-w.f.rotation.y;dr=Math.atan2(Math.sin(dr),Math.cos(dr));w.f.rotation.y+=dr*Math.min(1,dt*8);u.head.rotation.x=0;walkAnim(w.f,dt,w.speed);});
-  readers.forEach((r,i)=>{const on=i<nR;r.f.visible=on;r.bk.visible=on;if(!on)return;const u=r.f.userData;u.head.rotation.x=.38+Math.sin(time*.5+r.ph)*.06;u.head.rotation.y=Math.sin(time*.13+r.ph)*.15;if(u.tome)u.tome.position.y=1.32+Math.sin(time*1.2+r.ph)*.03;});
-  walkers.forEach(w=>{const u=w.f.userData;if(u.tome){u.tome.position.y=1.28+Math.sin(time*1.4+u.phase)*.04;u.tome.rotation.y=Math.sin(time*.5+u.phase)*.3;}});
-  let nOut=0;
-  outside.forEach(o=>{const f=o.f,u=f.userData;
-    if(o.kind==='patrol'){const sp=o.speed*(1-S.snow*.3);f.position.z+=o.dir*sp*dt;if(Math.abs(f.position.z)>34){o.dir*=-1;f.position.z=clamp(f.position.z,-34,34);}f.rotation.y=o.dir>0?0:Math.PI;walkAnim(f,dt,sp);nOut++;}
-    else if(o.kind==='cast'){const vis=activity>.3||u.phase<3;f.visible=vis;if(!vis)return;nOut++;o.next-=dt;idle(f);
-      if(o.next<0&&o.next>-1.6){const k=-o.next/1.6;u.arms[1].rotation.x=-2.2*Math.sin(Math.min(1,k*2)*Math.PI/2);u.burst.material.opacity=Math.max(0,1-k)*.85;u.burst.scale.setScalar(1+k*14);}
-      else{u.arms[1].rotation.x=lerp(u.arms[1].rotation.x,-.25,dt*3);u.burst.material.opacity=0;u.burst.scale.setScalar(1);}
-      if(o.next<-1.6)o.next=rand(4,9);u.orb.material.emissiveIntensity=1.2+Math.sin(time*3+u.phase)*.5;f.rotation.y+=Math.sin(time*.2+u.phase)*dt*.2;}
-    else if(o.kind==='duel'){const vis=activity>.5;f.visible=vis;if(!vis)return;nOut++;o.ph+=dt*2.2;const s=Math.sin(o.ph);u.arms[1].rotation.x=-1.4+s*1.0;u.arms[1].rotation.z=Math.cos(o.ph)*.4;
-      f.position.z=o.base+Math.sin(o.ph*.5)*.25*(o.base<0?1:-1);if(u.legs){u.legs[0].rotation.x=.25;u.legs[1].rotation.x=-.35;u.knees[1].rotation.x=.3;}}});
+  if(people)people.update(dt,time,activity,S,started?player:null);
   dragons.forEach((d,i)=>{d.a+=d.sp*dt;const a=d.a;const g=d.g,u=g.userData;
     const x=d.cx+Math.cos(a)*d.rx,z=d.cz+Math.sin(a)*d.rz,y=d.h+Math.sin(a*2.3)*6;
     const nx=d.cx+Math.cos(a+.02)*d.rx,nz=d.cz+Math.sin(a+.02)*d.rz,ny=d.h+Math.sin((a+.02)*2.3)*6;
@@ -344,7 +337,7 @@ function updateFigures(dt,time){
     u.nsegs.forEach((s,k)=>{s.rotation.x=-.12+Math.sin(time*.8+k)*.05;});
     u.fireT-=dt;if(u.fireT<0&&u.fireOn<=0){u.fireOn=2.2;u.fireT=rand(12,26);}
     if(u.fireOn>0){u.fireOn-=dt;const k=clamp(u.fireOn/2.2,0,1);u.fire.material.opacity=Math.sin(k*Math.PI)*.85;u.fire.scale.set(1+Math.random()*.2,1,1+Math.random()*.2);u.jaw.rotation.x=.35*Math.sin(k*Math.PI);}else{u.fire.material.opacity=0;u.jaw.rotation.x=0;}});
-  $('crowd').textContent=`館内　${nW+nR}人（司祭・賢者たち）\n窓の外　${nOut}人の冒険者と、${dragons.length}頭の竜`;
+  const c=people?people.counts:{inside:0,outside:0};$('crowd').textContent=`館内　${c.inside}人（賢者・学僧・司書たち）\n窓の外　${c.outside}人の冒険者と、${dragons.length}頭の竜`;
   $('crowd').style.whiteSpace='pre-line';
 }
 
@@ -360,9 +353,13 @@ function openBook(wi,id){if(pulled)closeBook(true);const w=wallMeshes[wi];pulled
   const r=RECS[w.rec[id]];const [main,sub]=splitTitle(r.t);const col=new THREE.Color().fromArray(w.mesh.instanceColor.array,id*3);
   $('cover').style.background='#'+col.getHexString();$('cover').style.color=col.getHSL({}).l>.6?'#1d1810':'#fff';$('cover').textContent=main;
   $('bTitle').textContent=main;$('bSub').textContent=sub;$('bAuthor').textContent=r.a;$('bLoc').textContent=locText(w,id);
+  $('bPrize').textContent=r.prizes.map(p=>`${prizeName(p.p)}　${p.label}`).join('\n');$('bPrize').style.display=r.prizes.length?'block':'none';updateBagUI(r);
   updateReadUI(r);
   $('borrow').href=BORROW_URL;$('buy').href=amazonUrl(main,r.a);
   $('sheet').classList.add('open');$('hint').classList.remove('on');}
+function updateBagUI(r){const b1=$('bagBorrow'),b2=$('bagBuy');const i1=inBag('borrow',r),i2=inBag('buy',r);b1.querySelector('b').textContent=i1?'借りる本に入っています':'借りる本に入れる';b1.classList.toggle('in',i1);b2.querySelector('b').textContent=i2?'買う本に入っています':'買う本に入れる';b2.classList.toggle('in',i2);updateBagChip();}
+function updateBagChip(){const a=bagList('borrow').length,b=bagList('buy').length;const el=$('bagChip');el.textContent=a||b?`かばん　借${a}・買${b}`:'';el.style.display=a||b?'block':'none';}
+['borrow','buy'].forEach(k=>$(k==='borrow'?'bagBorrow':'bagBuy').addEventListener('click',()=>{if(!pulled)return;const r=RECS[pulled.w.rec[pulled.id]];const added=toggleBag(k,r);updateBagUI(r);counterUI.toast(added?(k==='borrow'?'借りる本に入れました。入口の貸出カウンターへどうぞ':'買う本に入れました。入口の購入カウンターへどうぞ'):'リストから外しました');}));
 function updateReadUI(r){const br=$('bRead'),rd=isRead(r);if(rd){br.className='';br.textContent=r.fromLib&&r.d?`読んだ本　${r.d}に借りた`:'読んだ本';}else{br.className='unread';br.textContent='まだ読んでいない本';}$('markRead').textContent=rd?'読んだ印を外す':'読んだ本にする';}
 $('markRead').addEventListener('click',()=>{if(!pulled)return;const w=pulled.w,id=pulled.id,r=RECS[w.rec[id]];setRead(r,!isRead(r));updateReadUI(r);applyLabel(w,id,.17);});
 function closeBook(instant){if(!pulled)return;if(instant){setPull(pulled.w,pulled.id,0);pulled=null;}else pulled.dir=-1;$('sheet').classList.remove('open');}
@@ -373,14 +370,14 @@ const sEl=$('search'),qEl=$('q'),resEl=$('results'),infoEl=$('sInfo');
 function openSearch(){sEl.classList.add('open');qEl.value='';render('');setTimeout(()=>qEl.focus(),40);}
 function closeSearch(){sEl.classList.remove('open');qEl.blur();}
 function render(q){resEl.innerHTML='';
-  if(!q.trim()){infoEl.textContent=`蔵書 ${RECS.length}冊（読んだ本 ${readCount()}冊）から探せます`;return;}
-  const hits=searchBooks(q).filter(i=>recLoc[i]);
-  infoEl.textContent=hits.length?`${hits.length}${hits.length>=60?'冊以上':'冊'}見つかりました。選ぶとその棚へ飛びます`:'見つかりませんでした。別の言葉で試してください';
-  hits.forEach(ri=>{const r=RECS[ri];const [wi,i]=recLoc[ri];const w=wallMeshes[wi];const col=new THREE.Color().fromArray(w.mesh.instanceColor.array,i*3);
+  if(!q.trim()){infoEl.textContent=`蔵書 ${RECS.length}冊（読んだ本 ${readCount()}冊）。書名・著者名のほか「芥川賞」「直木賞 170」のように賞や回でも探せます`;return;}
+  const hits=searchBooks(q).filter(i=>recLoc[i]||RECS[i].wish);
+  infoEl.textContent=hits.length?`${hits.length}${hits.length>=80?'冊以上':'冊'}見つかりました。選ぶとその棚へ飛びます`:'見つかりませんでした。別の言葉で試してください';
+  hits.forEach(ri=>{const r=RECS[ri];if(!recLoc[ri]){resEl.append(wishResult(r));return;}const [wi,i]=recLoc[ri];const w=wallMeshes[wi];const col=new THREE.Color().fromArray(w.mesh.instanceColor.array,i*3);
     const li=document.createElement('li');const b=document.createElement('button');b.type='button';
     const sp=document.createElement('span');sp.className='sp';sp.style.background='#'+col.getHexString();
     const tx=document.createElement('span');const t=document.createElement('div');t.className='t';t.textContent=splitTitle(r.t)[0];
-    const m=document.createElement('div');m.className='m';m.textContent=`${r.a}　${locText(w,i)}`;if(isRead(r)){const rd=document.createElement('span');rd.className='rd';rd.textContent='　読んだ本';m.append(rd);}
+    const m=document.createElement('div');m.className='m';m.textContent=[r.a,r.primary?`${PRIZE_SHORT[r.primary.p]||r.primary.p} 第${r.primary.n}回`:'',locText(w,i)].filter(Boolean).join('　');if(isRead(r)){const rd=document.createElement('span');rd.className='rd';rd.textContent='　読んだ本';m.append(rd);}
     tx.append(t,m);b.append(sp,tx);b.addEventListener('click',()=>warpTo(ri));li.append(b);resEl.append(li);});}
 qEl.addEventListener('input',()=>render(qEl.value));
 qEl.addEventListener('keydown',e=>{if(e.key==='Enter'){const f=resEl.querySelector('button');if(f)f.click();}});
@@ -402,9 +399,9 @@ cv.addEventListener('pointermove',e=>{
   if(joy&&e.pointerId===joy.id){let dx=e.clientX-joy.cx,dy=e.clientY-joy.cy;const d=Math.hypot(dx,dy),mx=46;if(d>mx){dx*=mx/d;dy*=mx/d;}knob.style.transform=`translate(${dx}px,${dy}px)`;mv.x=dx/mx;mv.y=dy/mx;}
   else if(look&&e.pointerId===look.id){const s=isTouch?.0055:.0038;player.yaw-=(e.clientX-look.x)*s;player.pitch=clamp(player.pitch-(e.clientY-look.y)*s,-1.3,1.3);look.x=e.clientX;look.y=e.clientY;}});
 function endPtr(e){if(joy&&e.pointerId===joy.id){joy=null;mv.x=mv.y=0;joyEl.classList.remove('on');}
-  if(look&&e.pointerId===look.id){const moved=Math.hypot(e.clientX-look.sx,e.clientY-look.sy);if(e.type==='pointerup'&&moved<9&&performance.now()-look.t<400){const h=hitBook(e.clientX,e.clientY);if(h)openBook(h.wi,h.id);else if(pulled)closeBook(false);}look=null;}}
+  if(look&&e.pointerId===look.id){const moved=Math.hypot(e.clientX-look.sx,e.clientY-look.sy);if(e.type==='pointerup'&&moved<9&&performance.now()-look.t<400){const h=hitBook(e.clientX,e.clientY);if(h)openBook(h.wi,h.id);else{ndc.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);const w=wishPile.pick(ndc,camera);if(w){closeBook(true);openWish(w==='table'?null:w);}else if(pulled)closeBook(false);}}look=null;}}
 cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
-addEventListener('keydown',e=>{if(document.activeElement===qEl)return;keys[e.code]=true;});addEventListener('keyup',e=>{keys[e.code]=false;});addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
+addEventListener('keydown',e=>{const ae=document.activeElement;if(ae&&/INPUT|TEXTAREA/.test(ae.tagName))return;keys[e.code]=true;});addEventListener('keyup',e=>{keys[e.code]=false;});addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
 function blocked(x,z){if(z<-L+.5||z>L-.5)return true;const r=.32;for(const c of colliders)if(x>c.x0-r&&x<c.x1+r&&z>c.z0-r&&z<c.z1+r)return true;return false;}
 function zoneName(){const x=player.x,z=player.z;if(z>17.5)return '大扉の前';if(z<-18.5)return '薔薇窓の下';if(Math.abs(x)<1.6&&z>12.8)return '大地球儀のそば';if(Math.abs(x)<2.2)return '中央の閲覧机';
   const w=wallMeshes[x<0?0:1];const b=w.wl.bays.find(b=>z>=b[0]&&z<=b[1]);return b?`${w.wl.name}・第${b.num}書架`:`${w.wl.name}の窓辺`;}
@@ -426,7 +423,7 @@ function loop(){
   const dt=Math.min(clock.getDelta(),.05),time=clock.elapsedTime;
   if(S.auto)S.hour=(S.hour+dt/20)%24;
   if(S.autoWx){S.nextWx-=dt;if(S.nextWx<0){const r=Math.random();setWx(r<.45?'clear':r<.7?'cloudy':r<.9?'rain':'snow');S.nextWx=rand(3,6)*20;}}
-  updateEnv(dt,time);updateFigures(dt,time);
+  updateEnv(dt,time);updateFigures(dt,time);counterDecor.update(time);if(started)counterUI.update(player);
   if(started)updatePlayer(dt);else{camera.position.set(0,1.62,19.5);camera.rotation.set(.12,Math.sin(time*.15)*.3,0);}
   if(pulled){pulled.t=clamp(pulled.t+dt*3.2*pulled.dir,0,1);const e=1-Math.pow(1-pulled.t,3);setPull(pulled.w,pulled.id,e*.17);if(pulled.dir<0&&pulled.t<=0){setPull(pulled.w,pulled.id,0);pulled=null;}}
   if(warp>0){warp=Math.max(0,warp-dt*1.4);$('warp').style.opacity=(Math.sin(warp*Math.PI)).toFixed(3);}
@@ -434,9 +431,72 @@ function loop(){
   $('clockW').textContent=WX[S.wx].name;
   zoneT-=dt;if(zoneT<0&&started){zoneT=.4;$('zone').textContent=zoneName();}
   hintT-=dt;if(hintT<0&&started&&!pulled){hintT=.22;const h=hitBook(innerWidth/2,innerHeight/2);const el=$('hint');
-    if(h){const r=RECS[wallMeshes[h.wi].rec[h.id]];el.innerHTML='';const b=document.createElement('b');b.textContent='『'+splitTitle(r.t)[0]+'』';el.append(b,document.createTextNode(isRead(r)?'　読んだ本':''));el.classList.add('on');}else el.classList.remove('on');}
+    if(!h){ndc.set(0,0);const wp=wishPile.pick(ndc,camera);if(wp){el.innerHTML='';const b=document.createElement('b');b.textContent=wp==='table'?'読みたい本の台':'『'+wp.title+'』';el.append(b,document.createTextNode(wp==='table'?`　${wishPile.count()}冊`:'　読みたい本'));el.classList.add('on');}else el.classList.remove('on');}
+    else if(h){const r=RECS[wallMeshes[h.wi].rec[h.id]];el.innerHTML='';const b=document.createElement('b');b.textContent='『'+splitTitle(r.t)[0]+'』';el.append(b,document.createTextNode(isRead(r)?'　読んだ本':''));el.classList.add('on');}}
   renderer.render(scene,camera);requestAnimationFrame(loop);}
 $('enter').addEventListener('click',()=>{started=true;$('intro').classList.add('gone');cv.focus();});
+const counterUI=createCounterUI({$,onChange:()=>{updateBagChip();if(pulled)updateBagUI(RECS[pulled.w.rec[pulled.id]]);}});
+updateBagChip();
+// ---- 読みたい本（本屋さんでスキャン）
+const wishlist=createWishlist({onChange:(items,mode)=>{registerWish(items);wishPile.rebuild(items);renderWish();const n=items.filter(i=>i.status!=='読了').length;const c=$('wishChip');c.textContent=`読みたい本　${n}冊`;c.style.display=n?'block':'none';}});
+wishlist.refresh();
+function wishResult(r){const li=document.createElement('li');const b=document.createElement('button');b.type='button';
+  const sp=document.createElement('img');sp.className='thumb';sp.alt='';sp.src=coverUrl(r.wish);sp.onerror=()=>{sp.style.visibility='hidden';};
+  const tx=document.createElement('span');const t=document.createElement('div');t.className='t';t.textContent=r.t;const m=document.createElement('div');m.className='m';m.textContent=`${r.a}　読みたい本の台（${r.wish.status}）`;tx.append(t,m);b.append(sp,tx);
+  b.addEventListener('click',()=>{closeSearch();warpToPile();setTimeout(()=>openWish(r.wish),500);});li.append(b);return li;}
+function warpToPile(){warp=1;setTimeout(()=>{player.x=PILE.x;player.z=PILE.z-1.9;player.yaw=0;player.yaw=Math.PI;player.x=PILE.x;player.z=PILE.z-1.85;player.pitch=-0.45;started=true;$('intro').classList.add('gone');},260);}
+const STAT=['未読','読書中','再読予定','中断','読了'];
+function openWish(focus){$('wish').classList.add('open');renderWish(focus);}
+function closeWish(){$('wish').classList.remove('open');}
+$('wClose').addEventListener('click',closeWish);$('wishChip').addEventListener('click',()=>openWish(null));
+function renderWish(focus){if(!$('wish').classList.contains('open'))return;const ul=$('wList');ul.innerHTML='';
+  const items=wishlist.items.slice().sort((a,b)=>(a.status==='読了')-(b.status==='読了')||(b.created||'').localeCompare(a.created||''));
+  $('wNote').textContent=wishlist.mode==='notion'?`Notion「読書管理」と同期中　${items.length}冊`:'この端末に保存中（Notion未接続。つながったら自動で送ります）';
+  items.forEach(it=>{const li=document.createElement('li');if(focus&&focus.isbn===it.isbn)li.className='focus';
+    const img=document.createElement('img');img.className='wc';img.alt='';img.loading='lazy';img.src=coverUrl(it);img.onerror=()=>{img.style.visibility='hidden';};
+    const info=document.createElement('div');info.className='wi';const t=document.createElement('b');t.textContent=it.title;
+    const m=document.createElement('span');m.textContent=[(it.authors||[]).join('・'),it.publisher].filter(Boolean).join('　');
+    const lib=document.createElement('span');lib.className='wl';lib.textContent=it.library?`図書館：${it.library}`:'';
+    const st=document.createElement('div');st.className='wst';
+    STAT.forEach(s=>{const b=document.createElement('button');b.type='button';b.textContent=s;b.setAttribute('aria-pressed',it.status===s);b.addEventListener('click',()=>{wishlist.setStatus(it,s);if(s==='読了')counterUI.toast('読了にしました。台から下ろしました');});st.append(b);});
+    const acts=document.createElement('div');acts.className='wact';
+    const rec=()=>RECS.find(r=>r.wish===it);
+    [['borrow','借りる本に'],['buy','買う本に']].forEach(([k,label])=>{const b=document.createElement('button');b.type='button';const r=rec();b.textContent=r&&inBag(k,r)?label.replace('に','')+'（入れた）':label+'入れる';
+      b.addEventListener('click',()=>{const r=rec();if(!r)return;const on=toggleBag(k,r);updateBagChip();counterUI.toast(on?`${k==='borrow'?'借りる':'買う'}本に入れました。入口の${k==='borrow'?'貸出':'購入'}カウンターへ`:'リストから外しました');renderWish(focus);});acts.append(b);});
+    const rm=document.createElement('button');rm.type='button';rm.className='wrm';rm.textContent='台から外す';rm.addEventListener('click',()=>{if(confirm(`『${it.title}』を読みたい本から外しますか？`))wishlist.remove(it);});acts.append(rm);
+    info.append(t,m,lib,st,acts);li.append(img,info);ul.append(li);});
+  if(!items.length){const li=document.createElement('li');li.className='empty';li.textContent='まだ何も積まれていません。右上のカメラで、本屋さんの本のバーコードを読んでみて。';ul.append(li);}
+  const f=ul.querySelector('.focus');if(f&&f.scrollIntoView)f.scrollIntoView({block:'center'});}
+// スキャナー
+let scanner=null,scanCount=0,lastAdded=null;
+function scanStatus(t){$('sStatus').textContent=t;}
+async function handleIsbn(isbn){
+  if(wishlist.has(isbn)){showResult({isbn,title:(wishlist.items.find(i=>i.isbn===isbn)||{}).title||isbn},'もう台に積んであります',false);return;}
+  scanStatus('本を探しています…');
+  let info=null;try{info=await lookupIsbn(isbn);}catch(_){}
+  if(!info)info={isbn,title:`ISBN ${isbn}`,authors:[],publisher:'',cover:''};
+  const r=await wishlist.add(info);scanCount++;lastAdded=wishlist.items.find(i=>i.isbn===isbn);
+  showResult(info,r.saved==='notion'?'読みたい本の台に積みました（Notionにも保存）':'読みたい本の台に積みました（この端末に保存）',true);
+  scanStatus(`次の本もどうぞ　今回 ${scanCount}冊`);}
+function showResult(info,msg,undo){const box=$('sResult');box.classList.add('on');$('sCover').src=coverUrl(info);$('sCover').style.visibility='visible';$('sCover').onerror=()=>{$('sCover').style.visibility='hidden';};
+  $('sTitle').textContent=info.title;$('sAuthor').textContent=[(info.authors||[]).join('・'),info.publisher].filter(Boolean).join('　');$('sMsg').textContent=msg;$('sUndo').style.display=undo?'block':'none';}
+$('sUndo').addEventListener('click',()=>{if(lastAdded){wishlist.remove(lastAdded);lastAdded=null;scanCount=Math.max(0,scanCount-1);$('sMsg').textContent='取り消しました';$('sUndo').style.display='none';}});
+$('scanBtn').addEventListener('click',()=>{$('scan').classList.add('open');$('sResult').classList.remove('on');scanCount=0;
+  if(!scanner)scanner=createScanner({video:$('sVideo'),onCode:handleIsbn,onStatus:scanStatus});scanner.start();});
+function closeScan(){$('scan').classList.remove('open');if(scanner)scanner.stop();}
+$('sClose').addEventListener('click',closeScan);
+$('sManualGo').addEventListener('click',()=>{const v=$('sManual').value.replace(/[^0-9Xx]/g,'');const d=v.length===10?null:v;
+  if(v.length===13&&/^97[89]/.test(v)){handleIsbn(v);$('sManual').value='';}else if(v.length===10){fetch('/api/isbn?isbn='+v).then(r=>r.ok?r.json():null).then(i=>{if(i)handleIsbn(i.isbn);else scanStatus('そのISBNの本が見つかりませんでした');});$('sManual').value='';}else scanStatus('ISBNは978から始まる13桁（または10桁）で入れてね');});
+$('sManual').addEventListener('keydown',e=>{if(e.key==='Enter')$('sManualGo').click();});
+addEventListener('keydown',e=>{if(e.key==='Escape'){closeScan();closeWish();}});
+loadCast(p=>{$('loadNote').textContent=`館の人々が集まっています… ${Math.round(p*100)}%`;})
+  .then(cast=>{people=createPeople({scene,cast,seats,W,L,counters:COUNTERS});$('loadNote').textContent='';})
+  .catch(e=>{console.error(e);$('loadNote').textContent='登場人物を読み込めませんでした';});
+// Notion と公式発表から最新の蔵書を取り込む（取れなければ同梱のデータのまま）
+fetch('/api/books').then(r=>r.ok?r.json():null).then(d=>{if(!d||!Array.isArray(d.rows))return;
+  const added=mergeRemote(d.rows);let placed=0;added.forEach(ri=>{if(placeNew(ri))placed++;});
+  wallMeshes.forEach(w=>w.inst.forEach((b,i)=>{if(w.rec[i]>=0)applyLabel(w,i,0);}));
+  if(placed)counterUI.toast(`新しく${placed}冊が文学賞の書架に並びました`);}).catch(()=>{});
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{/* bay plaques drawn with fallback until fonts load; acceptable */});
 requestAnimationFrame(loop);
