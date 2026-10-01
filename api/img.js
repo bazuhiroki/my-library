@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   const c = new AbortController();
   const t = setTimeout(() => c.abort(), 6000);
   try {
-    const r = await fetch(x.href, { signal: c.signal, redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MyLibrary/1.0)', Accept: 'image/*' } });
+    const r = await fetch(x.href, { signal: c.signal, redirect: 'follow', headers: { 'User-Agent': 'MyLibrary/1.0 (https://my-library-seven-alpha.vercel.app; personal reading app)', Accept: 'image/*' } });
     if (!r.ok || !publicUrl(r.url || x.href)) return res.status(404).end();
     const type = r.headers.get('content-type') || '';
     if (!type.startsWith('image/')) return res.status(415).end();
