@@ -4,7 +4,7 @@ import './style.css';
 import { $, rand, pick, clamp, lerp, smooth, isTouch } from './util.js';
 import { createTextures } from './textures.js';
 import { createFigureKit } from './figures.js';
-import { RECS, BORROW_URL, amazonUrl, isRead, setRead, readCount, searchBooks, mergeRemote, PRIZE_ORDER, PRIZE_SHORT, prizeName, inBag, toggleBag, bagList } from './books.js';
+import { RECS, BORROW_URL, amazonUrl, isRead, setRead, readCount, findRec, mergeRemote, PRIZE_ORDER, PRIZE_SHORT, prizeName, inBag, toggleBag, bagList } from './books.js';
 import { loadCast } from './characters.js';
 import { createPeople } from './people.js';
 import { COUNTERS, buildCounters, createCounterUI } from './counters.js';
@@ -12,6 +12,12 @@ import { createScanner } from './scanner.js';
 import { createWishlist, lookupIsbn, coverUrl } from './wishlist.js';
 import { createWishPile, PILE } from './wishpile.js';
 import { registerWish } from './books.js';
+import { initSearch } from './search.js';
+import { createTreasure, createSfx } from './treasure.js';
+import { createJournal } from './journal.js';
+import { createWorld } from './world.js';
+import { createMapTexture, createMapUI } from './mapui.js';
+import { createArchive } from './archive.js';
 import { createSpineAtlas, patchSpineMaterial } from './spines.js';
 
 let renderer;
@@ -70,7 +76,7 @@ EWIN.forEach(z=>{const gm=new THREE.MeshBasicMaterial({map:rainTex,transparent:t
   box(M.walnutDark,0.5,0.08,WW+0.2,W+0.05,SILL-0.04,z);});
 // end walls
 function endShape(){const s=new THREE.Shape();s.moveTo(-W-0.6,0);s.lineTo(W+0.6,0);s.lineTo(W+0.6,SH);s.lineTo(W,SH);s.absarc(0,SH,VR,0,Math.PI,false);s.lineTo(-W-0.6,SH);s.lineTo(-W-0.6,0);return s;}
-{const s=endShape();const rose=new THREE.Path();rose.absarc(0,9.3,1.9,0,Math.PI*2,true);s.holes.push(rose);
+{const s=endShape();const rose=new THREE.Path();rose.absarc(0,9.3,1.9,0,Math.PI*2,true);s.holes.push(rose);{const dp=new THREE.Path();dp.moveTo(-1.5,0);dp.lineTo(1.5,0);dp.lineTo(1.5,3.2);dp.absarc(0,3.2,1.5,0,Math.PI,false);dp.lineTo(-1.5,0);s.holes.push(dp);}
  const m=new THREE.Mesh(new THREE.ExtrudeGeometry(s,{depth:0.6,bevelEnabled:false,curveSegments:40}),M.plaster);m.position.z=-L-0.6;m.castShadow=m.receiveShadow=true;scene.add(m);
  const ms=new THREE.Shape();ms.moveTo(W,SH);ms.absarc(0,SH,VR-0.02,0,Math.PI,false);ms.lineTo(W,SH);const mh=new THREE.Path();mh.absarc(0,9.3,2.15,0,Math.PI*2,true);ms.holes.push(mh);
  const mt=muralTex('north');const mg=new THREE.ShapeGeometry(ms,40);remapUV(mg,-VR,SH,VR*2,VR);const mu=mesh(mg,new THREE.MeshStandardMaterial({map:mt,roughness:.85}),0,0,-L+0.02);
@@ -78,8 +84,8 @@ function endShape(){const s=new THREE.Shape();s.moveTo(-W-0.6,0);s.lineTo(W+0.6,
  const rr=new THREE.Mesh(new THREE.TorusGeometry(2.05,0.12,8,48),M.gold);rr.position.set(0,9.3,-L+0.03);scene.add(rr);}
 {const s=endShape();const d=new THREE.Path();d.moveTo(-1.6,0);d.lineTo(1.6,0);d.lineTo(1.6,3.4);d.absarc(0,3.4,1.6,0,Math.PI,false);d.lineTo(-1.6,0);s.holes.push(d);
  const m=new THREE.Mesh(new THREE.ExtrudeGeometry(s,{depth:0.6,bevelEnabled:false,curveSegments:40}),M.plaster);m.position.z=L;m.castShadow=m.receiveShadow=true;scene.add(m);
- box(M.walnutDark,1.58,3.4,0.14,-0.8,1.7,L+0.3);box(M.walnutDark,1.58,3.4,0.14,0.8,1.7,L+0.3);
- [-1,1].forEach(s2=>{for(let k=0;k<3;k++)box(M.walnut,1.2,0.9,0.04,s2*0.8,0.7+k*1.05,L+0.21,{cast:false});const r=new THREE.Mesh(new THREE.TorusGeometry(0.1,0.018,8,20),M.gold);r.position.set(s2*0.18,1.3,L+0.2);scene.add(r);});
+ 
+ 
  const tr=mesh(new THREE.CircleGeometry(1.6,32,0,Math.PI),new THREE.MeshStandardMaterial({color:0xffe6b8,emissive:0xffd79a,emissiveIntensity:.3}),0,3.4,L+0.3);tr.rotation.y=Math.PI;
  const ms=new THREE.Shape();ms.moveTo(W,SH);ms.absarc(0,SH,VR-0.02,0,Math.PI,false);ms.lineTo(W,SH);
  const mg=new THREE.ShapeGeometry(ms,40);remapUV(mg,-VR,SH,VR*2,VR);const mu=mesh(mg,new THREE.MeshStandardMaterial({map:muralTex('south'),roughness:.85}),0,0,L-0.02);mu.rotation.y=Math.PI;}
@@ -132,7 +138,7 @@ WALLS.forEach(wl=>{
     col.setHex(pick(BOOK_COLORS));col.offsetHSL(rand(-.015,.015),rand(-.06,.04),rand(-.06,.05));mesh2.setColorAt(i,col);});
   mesh2.instanceMatrix.needsUpdate=true;scene.add(mesh2);
   wallMeshes.push({wl,mesh:mesh2,inst,rec:new Int16Array(inst.length).fill(-1),lab:new Int32Array(inst.length).fill(-1),base:mesh2.instanceMatrix.array.slice()});
-  colliders.push(s<0?{x0:-99,x1:-(FRONT-0.05),z0:-99,z1:99}:{x0:FRONT-0.05,x1:99,z0:-99,z1:99});
+  colliders.push(s<0?{x0:-7,x1:-(FRONT-0.05),z0:-L,z1:L}:{x0:FRONT-0.05,x1:6.6,z0:-L,z1:L});
 });
 {const pm=new THREE.InstancedMesh(new THREE.BoxGeometry(0.47,6.25,0.1),postMat,posts.length);posts.forEach((p,i)=>{dummy.position.set(p[0],3.12,p[1]);dummy.scale.set(1,1,1);dummy.rotation.set(0,0,0);dummy.updateMatrix();pm.setMatrixAt(i,dummy.matrix);});pm.castShadow=true;pm.receiveShadow=true;scene.add(pm);
  const bm=new THREE.InstancedMesh(new THREE.CylinderGeometry(0.012,0.012,0.88,5),M.iron,balusters.length);balusters.forEach((p,i)=>{dummy.position.set(p[0],3.86,p[1]);dummy.updateMatrix();bm.setMatrixAt(i,dummy.matrix);});scene.add(bm);}
@@ -201,6 +207,8 @@ const vaultLights=[-10,10].map(z=>{const l=new THREE.PointLight(0xffc27a,0,26,1.
 
 const counterDecor=buildCounters({scene,box,M,textTex,colliders});
 const wishPile=createWishPile({scene,M,textTex,colliders});
+const mapTex=createMapTexture();
+const world=createWorld({scene,box,mesh,M,textTex,colliders,tex:{stoneTex,parquetTex,plasterTex},mapTex,W,L,weather:()=>[rain,snow]});
 // ================= lights & sky =================
 const hemi=new THREE.HemisphereLight(0xcfe0f0,0x3a2a1c,0.4);scene.add(hemi);
 const amb=new THREE.AmbientLight(0xffd9b0,0.12);scene.add(amb);
@@ -223,7 +231,7 @@ const ground=mesh(new THREE.PlaneGeometry(1400,1400),grassMat,700+W+0.6,-0.02,0)
 const court=mesh(new THREE.PlaneGeometry(36,80),new THREE.MeshStandardMaterial({map:stoneTex,roughness:.9}),W+0.6+18,0.01,0);court.rotation.x=-Math.PI/2;court.receiveShadow=true;const courtMat=court.material;
 box(new THREE.MeshStandardMaterial({color:0x9a8e7a,roughness:.9}),0.8,1.1,80,W+0.6+36,0.55,0);
 const torchFlames=[];
-for(let z=-36;z<=36;z+=12){box(M.iron,0.12,2.6,0.12,W+4,1.3,z);const f=mesh(new THREE.SphereGeometry(0.16,10,8),new THREE.MeshBasicMaterial({color:0xffb050,transparent:true,opacity:0}),W+4,2.72,z);torchFlames.push(f);}
+for(let z=-36;z<=36;z+=12){if(z===-24||z===24)continue;box(M.iron,0.12,2.6,0.12,W+4,1.3,z);const f=mesh(new THREE.SphereGeometry(0.16,10,8),new THREE.MeshBasicMaterial({color:0xffb050,transparent:true,opacity:0}),W+4,2.72,z);torchFlames.push(f);}
 // forest
 const TREE_N=420;const treeGeo=new THREE.ConeGeometry(2.4,9,7);treeGeo.translate(0,4.5,0);
 const treeMat=new THREE.MeshStandardMaterial({color:0x2f4a2c,roughness:1,flatShading:true});
@@ -351,7 +359,7 @@ function updateFigures(dt,time){
 
 // ================= books: pick, pull, search, warp =================
 const ray=new THREE.Raycaster();ray.far=3.6;const ndc=new THREE.Vector2();let pulled=null;
-function hitBook(cx,cy){ndc.set(cx/innerWidth*2-1,-(cy/innerHeight)*2+1);ray.setFromCamera(ndc,camera);let best=null;
+function hitBook(cx,cy){if(player.z<-22.2||player.z>22.2||Math.abs(player.x)>6.2)return null;ndc.set(cx/innerWidth*2-1,-(cy/innerHeight)*2+1);ray.setFromCamera(ndc,camera);let best=null;
   wallMeshes.forEach((w,wi)=>{if(Math.sign(ray.ray.direction.x)!==w.wl.side)return;const hs=ray.intersectObject(w.mesh);if(hs.length&&(!best||hs[0].distance<best.d))best={wi,id:hs[0].instanceId,d:hs[0].distance};});
   if(best&&wallMeshes[best.wi].rec[best.id]<0)return null;return best;}
 function locText(w,i){const b=w.inst[i];return `${w.wl.name}・第${b.bay}書架・${b.tier==='low'?'下段':'上段'}の上から${(b.tier==='low'?7:6)-b.level}段目`;}
@@ -382,7 +390,7 @@ function showIntro(r,main){introFor=r;
     if(!d||(!d.description&&!d.source)){desc.className='';desc.textContent='この本の紹介文は見つかりませんでした。';return;}
     const src=d.isbn?`/api/cover?isbn=${d.isbn}${d.cover?'&src='+encodeURIComponent(d.cover):''}`:d.cover;
     if(src){img.onload=()=>{img.classList.add('on');glow.style.backgroundImage=`url("${src}")`;glow.classList.add('on');};img.onerror=()=>{if(d.cover&&img.src.indexOf('/api/cover')>=0)img.src=d.cover;};img.src=src;}
-    $('bMeta').textContent=[d.publisher,fmtDate(d.publishedDate),d.pageCount?`${d.pageCount}ページ`:'',d.isbn?`ISBN ${d.isbn}`:''].filter(Boolean).join('　');
+    if(d.pageCount)journal.pages(r,d.pageCount);$('bMeta').textContent=[d.publisher,fmtDate(d.publishedDate),d.pageCount?`${d.pageCount}ページ`:'',d.isbn?`ISBN ${d.isbn}`:''].filter(Boolean).join('　');
     desc.className='';desc.textContent=(d.description||'紹介文はまだ登録されていないようです。').replace(/<[^>]+>/g,'');
     requestAnimationFrame(()=>{if(desc.scrollHeight>desc.clientHeight+4)$('bMore').style.display='block';});
     if(d.infoLink){$('info').href=d.infoLink;$('info').style.display='inline';}});}
@@ -391,27 +399,21 @@ function updateBagUI(r){const b1=$('bagBorrow'),b2=$('bagBuy');const i1=inBag('b
 function updateBagChip(){const a=bagList('borrow').length,b=bagList('buy').length;const el=$('bagChip');el.textContent=a||b?`かばん　借${a}・買${b}`:'';el.style.display=a||b?'block':'none';}
 ['borrow','buy'].forEach(k=>$(k==='borrow'?'bagBorrow':'bagBuy').addEventListener('click',()=>{if(!pulled)return;const r=RECS[pulled.w.rec[pulled.id]];const added=toggleBag(k,r);updateBagUI(r);counterUI.toast(added?(k==='borrow'?'借りる本に入れました。入口の貸出カウンターへどうぞ':'買う本に入れました。入口の購入カウンターへどうぞ'):'リストから外しました');}));
 function updateReadUI(r){const br=$('bRead'),rd=isRead(r);if(rd){br.className='';br.textContent=r.fromLib&&r.d?`読んだ本　${r.d}に借りた`:'読んだ本';}else{br.className='unread';br.textContent='まだ読んでいない本';}$('markRead').textContent=rd?'読んだ印を外す':'読んだ本にする';}
-$('markRead').addEventListener('click',()=>{if(!pulled)return;const w=pulled.w,id=pulled.id,r=RECS[w.rec[id]];setRead(r,!isRead(r));updateReadUI(r);applyLabel(w,id,.17);});
+$('markRead').addEventListener('click',()=>{if(!pulled)return;const w=pulled.w,id=pulled.id,r=RECS[w.rec[id]];const to=!isRead(r);setRead(r,to);journal.marked(r,to);updateReadUI(r);applyLabel(w,id,.17);});
 function closeBook(instant){if(!pulled)return;if(instant){setPull(pulled.w,pulled.id,0);pulled=null;}else pulled.dir=-1;$('sheet').classList.remove('open');}
 $('putBack').addEventListener('click',()=>closeBook(false));
 // search
 
 const sEl=$('search'),qEl=$('q'),resEl=$('results'),infoEl=$('sInfo');
-function openSearch(){sEl.classList.add('open');qEl.value='';render('');setTimeout(()=>qEl.focus(),40);}
-function closeSearch(){sEl.classList.remove('open');qEl.blur();}
-function render(q){resEl.innerHTML='';
-  if(!q.trim()){infoEl.textContent=`蔵書 ${RECS.length}冊（読んだ本 ${readCount()}冊）。書名・著者名のほか「芥川賞」「直木賞 170」のように賞や回でも探せます`;return;}
-  const hits=searchBooks(q).filter(i=>recLoc[i]||RECS[i].wish);
-  infoEl.textContent=hits.length?`${hits.length}${hits.length>=80?'冊以上':'冊'}見つかりました。選ぶとその棚へ飛びます`:'見つかりませんでした。別の言葉で試してください';
-  hits.forEach(ri=>{const r=RECS[ri];if(!recLoc[ri]){resEl.append(wishResult(r));return;}const [wi,i]=recLoc[ri];const w=wallMeshes[wi];const col=new THREE.Color().fromArray(w.mesh.instanceColor.array,i*3);
-    const li=document.createElement('li');const b=document.createElement('button');b.type='button';
-    const sp=document.createElement('span');sp.className='sp';sp.style.background='#'+col.getHexString();
-    const tx=document.createElement('span');const t=document.createElement('div');t.className='t';t.textContent=splitTitle(r.t)[0];
-    const m=document.createElement('div');m.className='m';m.textContent=[r.a,r.primary?`${PRIZE_SHORT[r.primary.p]||r.primary.p} 第${r.primary.n}回`:'',locText(w,i)].filter(Boolean).join('　');if(isRead(r)){const rd=document.createElement('span');rd.className='rd';rd.textContent='　読んだ本';m.append(rd);}
-    tx.append(t,m);b.append(sp,tx);b.addEventListener('click',()=>warpTo(ri));li.append(b);resEl.append(li);});}
-qEl.addEventListener('input',()=>render(qEl.value));
-qEl.addEventListener('keydown',e=>{if(e.key==='Enter'){const f=resEl.querySelector('button');if(f)f.click();}});
-$('searchBtn').addEventListener('click',openSearch);$('sClose').addEventListener('click',closeSearch);
+function openSearch(){search.open();}
+function closeSearch(){search.close();}
+const search=initSearch({
+  hasSpot:(ri)=>!!recLoc[ri],
+  locOf:(ri)=>{const l=recLoc[ri];return l?locText(wallMeshes[l[0]],l[1]):'';},
+  colorOf:(ri)=>{const l=recLoc[ri];if(!l)return null;const w=wallMeshes[l[0]];return '#'+new THREE.Color().fromArray(w.mesh.instanceColor.array,l[1]*3).getHexString();},
+  warpTo:(ri)=>warpTo(ri),
+  openWish:(r)=>{warpToPile();setTimeout(()=>journal.open(r),500);}
+});
 let warp=0;
 function warpTo(ri){closeSearch();closeBook(true);const [wi,i]=recLoc[ri];const w=wallMeshes[wi];const b=w.inst[i];
   warp=1;setTimeout(()=>{player.x=b.x+b.face*(b.sx/2+1.45);player.z=clamp(b.z,-21,21);player.yaw=b.face>0?Math.PI/2:-Math.PI/2;player.pitch=Math.atan2(b.y-1.62,1.45);started=true;$('intro').classList.add('gone');
@@ -429,11 +431,11 @@ cv.addEventListener('pointermove',e=>{
   if(joy&&e.pointerId===joy.id){let dx=e.clientX-joy.cx,dy=e.clientY-joy.cy;const d=Math.hypot(dx,dy),mx=46;if(d>mx){dx*=mx/d;dy*=mx/d;}knob.style.transform=`translate(${dx}px,${dy}px)`;mv.x=dx/mx;mv.y=dy/mx;}
   else if(look&&e.pointerId===look.id){const s=isTouch?.0055:.0038;player.yaw-=(e.clientX-look.x)*s;player.pitch=clamp(player.pitch-(e.clientY-look.y)*s,-1.3,1.3);look.x=e.clientX;look.y=e.clientY;}});
 function endPtr(e){if(joy&&e.pointerId===joy.id){joy=null;mv.x=mv.y=0;joyEl.classList.remove('on');}
-  if(look&&e.pointerId===look.id){const moved=Math.hypot(e.clientX-look.sx,e.clientY-look.sy);if(e.type==='pointerup'&&moved<9&&performance.now()-look.t<400){const h=hitBook(e.clientX,e.clientY);if(h)openBook(h.wi,h.id);else{ndc.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);const w=wishPile.pick(ndc,camera);if(w){closeBook(true);openWish(w==='table'?null:w);}else if(pulled)closeBook(false);}}look=null;}}
+  if(look&&e.pointerId===look.id){const moved=Math.hypot(e.clientX-look.sx,e.clientY-look.sy);if(e.type==='pointerup'&&moved<9&&performance.now()-look.t<400){const h=hitBook(e.clientX,e.clientY);if(h)openBook(h.wi,h.id);else{ndc.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);const w=wishPile.pick(ndc,camera);if(w){closeBook(true);journal.open(w==='table'?null:w);}else if(archive.pick(ndc,camera)){closeBook(true);}else if(world.pickBoard(ndc,camera)){mapUI.open();}else if(pulled)closeBook(false);}}look=null;}}
 cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
 addEventListener('keydown',e=>{const ae=document.activeElement;if(ae&&/INPUT|TEXTAREA/.test(ae.tagName))return;keys[e.code]=true;});addEventListener('keyup',e=>{keys[e.code]=false;});addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
-function blocked(x,z){if(z<-L+.5||z>L-.5)return true;const r=.32;for(const c of colliders)if(x>c.x0-r&&x<c.x1+r&&z>c.z0-r&&z<c.z1+r)return true;return false;}
-function zoneName(){const x=player.x,z=player.z;if(z>17.5)return '大扉の前';if(z<-18.5)return '薔薇窓の下';if(Math.abs(x)<1.6&&z>12.8)return '大地球儀のそば';if(Math.abs(x)<2.2)return '中央の閲覧机';
+function blocked(x,z){if(!world.walkable(x,z))return true;const r=.32;for(const c of colliders)if(x>c.x0-r&&x<c.x1+r&&z>c.z0-r&&z<c.z1+r)return true;return false;}
+function zoneName(){const x=player.x,z=player.z;{const zw=world.zone(x,z);if(zw)return zw;}if(z>17.5)return '大扉の前';if(z<-18.5)return '薔薇窓の下';if(Math.abs(x)<1.6&&z>12.8)return '大地球儀のそば';if(Math.abs(x)<2.2)return '中央の閲覧机';
   const w=wallMeshes[x<0?0:1];const b=w.wl.bays.find(b=>z>=b[0]&&z<=b[1]);return b?`${w.wl.name}・第${b.num}書架`:`${w.wl.name}の窓辺`;}
 let started=false;
 function updatePlayer(dt){
@@ -453,7 +455,7 @@ function loop(){
   const dt=Math.min(clock.getDelta(),.05),time=clock.elapsedTime;
   if(S.auto)S.hour=(S.hour+dt/20)%24;
   if(S.autoWx){S.nextWx-=dt;if(S.nextWx<0){const r=Math.random();setWx(r<.45?'clear':r<.7?'cloudy':r<.9?'rain':'snow');S.nextWx=rand(3,6)*20;}}
-  updateEnv(dt,time);updateFigures(dt,time);counterDecor.update(time);if(started)counterUI.update(player);
+  updateEnv(dt,time);updateFigures(dt,time);world.update(dt,time,player,S.hour);counterDecor.update(time);if(started)counterUI.update(player);
   if(started)updatePlayer(dt);else{camera.position.set(0,1.62,19.5);camera.rotation.set(.12,Math.sin(time*.15)*.3,0);}
   if(pulled){pulled.t=clamp(pulled.t+dt*3.2*pulled.dir,0,1);const e=1-Math.pow(1-pulled.t,3);setPull(pulled.w,pulled.id,e*.17);if(pulled.dir<0&&pulled.t<=0){setPull(pulled.w,pulled.id,0);pulled=null;}}
   if(warp>0){warp=Math.max(0,warp-dt*1.4);$('warp').style.opacity=(Math.sin(warp*Math.PI)).toFixed(3);}
@@ -461,64 +463,56 @@ function loop(){
   $('clockW').textContent=WX[S.wx].name;
   zoneT-=dt;if(zoneT<0&&started){zoneT=.4;$('zone').textContent=zoneName();}
   hintT-=dt;if(hintT<0&&started&&!pulled){hintT=.22;const h=hitBook(innerWidth/2,innerHeight/2);const el=$('hint');
-    if(!h){ndc.set(0,0);const wp=wishPile.pick(ndc,camera);if(wp){el.innerHTML='';const b=document.createElement('b');b.textContent=wp==='table'?'読みたい本の台':'『'+wp.title+'』';el.append(b,document.createTextNode(wp==='table'?`　${wishPile.count()}冊`:'　読みたい本'));el.classList.add('on');}else el.classList.remove('on');}
+    if(!h){ndc.set(0,0);const wp=wishPile.pick(ndc,camera);if(wp){el.innerHTML='';const b=document.createElement('b');b.textContent=wp==='table'?'読みたい本の台':'『'+wp.title+'』';el.append(b,document.createTextNode(wp==='table'?`　${wishPile.count()}冊`:'　読みたい本'));el.classList.add('on');}else{const ah=archive.hint(camera);if(ah){el.innerHTML='';const b=document.createElement('b');b.textContent=ah[0];el.append(b,document.createTextNode(ah[1]));el.classList.add('on');}else if(world.pickBoard(ndc,camera)){el.innerHTML='';const b=document.createElement('b');b.textContent='館内案内図';el.append(b,document.createTextNode('　タップで開く'));el.classList.add('on');}else el.classList.remove('on');}}
     else if(h){const r=RECS[wallMeshes[h.wi].rec[h.id]];el.innerHTML='';const b=document.createElement('b');b.textContent='『'+splitTitle(r.t)[0]+'』';el.append(b,document.createTextNode(isRead(r)?'　読んだ本':''));el.classList.add('on');}}
   renderer.render(scene,camera);requestAnimationFrame(loop);}
 $('enter').addEventListener('click',()=>{started=true;$('intro').classList.add('gone');cv.focus();});
 const counterUI=createCounterUI({$,onChange:()=>{updateBagChip();if(pulled)updateBagUI(RECS[pulled.w.rec[pulled.id]]);}});
 updateBagChip();
 // ---- 読みたい本（本屋さんでスキャン）
-const wishlist=createWishlist({onChange:(items,mode)=>{registerWish(items);wishPile.rebuild(items);renderWish();const n=items.filter(i=>i.status!=='読了').length;const c=$('wishChip');c.textContent=`読みたい本　${n}冊`;c.style.display=n?'block':'none';}});
+const wishlist=createWishlist({onChange:(items,mode)=>{registerWish(items);wishPile.rebuild(items);journal.refresh();}});
+const journal=createJournal({wishlist,toast:(m)=>counterUI.toast(m),onBag:()=>updateBagChip(),hasSpot:(r)=>!!recLoc[r.id],warpToShelf:(r)=>warpTo(r.id),currentRec:()=>pulled?RECS[pulled.w.rec[pulled.id]]:null});
 wishlist.refresh();
-function wishResult(r){const li=document.createElement('li');const b=document.createElement('button');b.type='button';
-  const sp=document.createElement('img');sp.className='thumb';sp.alt='';sp.src=coverUrl(r.wish);sp.onerror=()=>{sp.style.visibility='hidden';};
-  const tx=document.createElement('span');const t=document.createElement('div');t.className='t';t.textContent=r.t;const m=document.createElement('div');m.className='m';m.textContent=`${r.a}　読みたい本の台（${r.wish.status}）`;tx.append(t,m);b.append(sp,tx);
-  b.addEventListener('click',()=>{closeSearch();warpToPile();setTimeout(()=>openWish(r.wish),500);});li.append(b);return li;}
-function warpToPile(){warp=1;setTimeout(()=>{player.x=PILE.x;player.z=PILE.z-1.9;player.yaw=0;player.yaw=Math.PI;player.x=PILE.x;player.z=PILE.z-1.85;player.pitch=-0.45;started=true;$('intro').classList.add('gone');},260);}
-const STAT=['未読','読書中','再読予定','中断','読了'];
-function openWish(focus){$('wish').classList.add('open');renderWish(focus);}
-function closeWish(){$('wish').classList.remove('open');}
-$('wClose').addEventListener('click',closeWish);$('wishChip').addEventListener('click',()=>openWish(null));
-function renderWish(focus){if(!$('wish').classList.contains('open'))return;const ul=$('wList');ul.innerHTML='';
-  const items=wishlist.items.slice().sort((a,b)=>(a.status==='読了')-(b.status==='読了')||(b.created||'').localeCompare(a.created||''));
-  $('wNote').textContent=wishlist.mode==='notion'?`Notion「読書管理」と同期中　${items.length}冊`:'この端末に保存中（Notion未接続。つながったら自動で送ります）';
-  items.forEach(it=>{const li=document.createElement('li');if(focus&&focus.isbn===it.isbn)li.className='focus';
-    const img=document.createElement('img');img.className='wc';img.alt='';img.loading='lazy';img.src=coverUrl(it);img.onerror=()=>{img.style.visibility='hidden';};
-    const info=document.createElement('div');info.className='wi';const t=document.createElement('b');t.textContent=it.title;
-    const m=document.createElement('span');m.textContent=[(it.authors||[]).join('・'),it.publisher].filter(Boolean).join('　');
-    const lib=document.createElement('span');lib.className='wl';lib.textContent=it.library?`図書館：${it.library}`:'';
-    const st=document.createElement('div');st.className='wst';
-    STAT.forEach(s=>{const b=document.createElement('button');b.type='button';b.textContent=s;b.setAttribute('aria-pressed',it.status===s);b.addEventListener('click',()=>{wishlist.setStatus(it,s);if(s==='読了')counterUI.toast('読了にしました。台から下ろしました');});st.append(b);});
-    const acts=document.createElement('div');acts.className='wact';
-    const rec=()=>RECS.find(r=>r.wish===it);
-    [['borrow','借りる本に'],['buy','買う本に']].forEach(([k,label])=>{const b=document.createElement('button');b.type='button';const r=rec();b.textContent=r&&inBag(k,r)?label.replace('に','')+'（入れた）':label+'入れる';
-      b.addEventListener('click',()=>{const r=rec();if(!r)return;const on=toggleBag(k,r);updateBagChip();counterUI.toast(on?`${k==='borrow'?'借りる':'買う'}本に入れました。入口の${k==='borrow'?'貸出':'購入'}カウンターへ`:'リストから外しました');renderWish(focus);});acts.append(b);});
-    const rm=document.createElement('button');rm.type='button';rm.className='wrm';rm.textContent='台から外す';rm.addEventListener('click',()=>{if(confirm(`『${it.title}』を読みたい本から外しますか？`))wishlist.remove(it);});acts.append(rm);
-    info.append(t,m,lib,st,acts);li.append(img,info);ul.append(li);});
-  if(!items.length){const li=document.createElement('li');li.className='empty';li.textContent='まだ何も積まれていません。右上のカメラで、本屋さんの本のバーコードを読んでみて。';ul.append(li);}
-  const f=ul.querySelector('.focus');if(f&&f.scrollIntoView)f.scrollIntoView({block:'center'});}
+function warpToPoint(p){closeSearch();closeBook(true);journal.close();warp=1;setTimeout(()=>{player.x=p.x;player.z=p.z;player.yaw=p.yaw||0;player.pitch=p.pitch||0;started=true;$('intro').classList.add('gone');},260);}
+const archive=createArchive({scene,atlas:spineAtlas,world,toast:(m)=>counterUI.toast(m),warp:warpToPoint});
+const mapUI=createMapUI({warp:(w)=>warpToPoint(w),player,zoneText:()=>zoneName(),onOpen:()=>{closeSearch();journal.close();archive.close();}});
+function warpToPile(){warp=1;setTimeout(()=>{player.yaw=Math.PI;player.x=PILE.x;player.z=PILE.z-1.85;player.pitch=-0.45;started=true;$('intro').classList.add('gone');},260);}
 // スキャナー
 let scanner=null,scanCount=0,lastAdded=null;
 function scanStatus(t){$('sStatus').textContent=t;}
-async function handleIsbn(isbn){
-  if(wishlist.has(isbn)){showResult({isbn,title:(wishlist.items.find(i=>i.isbn===isbn)||{}).title||isbn},'もう台に積んであります',false);return;}
-  scanStatus('本を探しています…');
-  let info=null;try{info=await lookupIsbn(isbn);}catch(_){}
-  if(!info)info={isbn,title:`ISBN ${isbn}`,authors:[],publisher:'',cover:''};
-  const r=await wishlist.add(info);scanCount++;lastAdded=wishlist.items.find(i=>i.isbn===isbn);
-  showResult(info,r.saved==='notion'?'読みたい本の台に積みました（Notionにも保存）':'読みたい本の台に積みました（この端末に保存）',true);
-  scanStatus(`次の本もどうぞ　今回 ${scanCount}冊`);}
+const sfx=createSfx();
+const treasure=createTreasure({host:$('scan'),shelf:()=>wishlist.items.filter(i=>i.status!=='読了'),sfx});
+const pendingScan=new Set();
 function showResult(info,msg,undo){const box=$('sResult');box.classList.add('on');$('sCover').src=coverUrl(info);$('sCover').style.visibility='visible';$('sCover').onerror=()=>{$('sCover').style.visibility='hidden';};
   $('sTitle').textContent=info.title;$('sAuthor').textContent=[(info.authors||[]).join('・'),info.publisher].filter(Boolean).join('　');$('sMsg').textContent=msg;$('sUndo').style.display=undo?'block':'none';}
+async function handleIsbn(isbn){
+  if(pendingScan.has(isbn))return;pendingScan.add(isbn);
+  const dup=wishlist.has(isbn);
+  scanStatus('宝箱を開けています…');
+  const out=await treasure.play({isbn,dup,load:async()=>{
+    if(dup){const it=wishlist.items.find(i=>i.isbn===isbn)||{};return {dup:true,info:{isbn,title:it.title||('ISBN '+isbn),authors:it.authors||[],publisher:it.publisher||'',cover:it.cover||''}};}
+    let info=null;try{info=await lookupIsbn(isbn);}catch(_){}
+    if(!info)info={isbn,title:'ISBN '+isbn,authors:[],publisher:'',cover:''};
+    const rec=findRec(info.title,(info.authors||[])[0]||'');
+    const r=await wishlist.add(info);
+    scanCount++;lastAdded=wishlist.items.find(i=>i.isbn===isbn)||null;
+    const p=rec&&rec.primary;
+    return {info,saved:r.saved,rare:p?{label:(PRIZE_SHORT[p.p]||p.p)+' 第'+p.n+'回'}:null,read:!!(rec&&rec.fromLib),count:wishlist.items.filter(i=>i.status!=='読了').length};
+  }});
+  pendingScan.delete(isbn);
+  if(!out)return;
+  scanStatus('次の本もどうぞ　今回 '+scanCount+'冊');
+  if(out.dup){showResult(out.info,'もう台に積んであります',false);return;}
+  showResult(out.info,out.saved==='notion'?'読みたい本の台に積みました（Notionにも保存）':'読みたい本の台に積みました（この端末に保存）',true);}
 $('sUndo').addEventListener('click',()=>{if(lastAdded){wishlist.remove(lastAdded);lastAdded=null;scanCount=Math.max(0,scanCount-1);$('sMsg').textContent='取り消しました';$('sUndo').style.display='none';}});
-$('scanBtn').addEventListener('click',()=>{$('scan').classList.add('open');$('sResult').classList.remove('on');scanCount=0;
+$('scanBtn').addEventListener('click',()=>{sfx.unlock();$('scan').classList.add('open');$('sResult').classList.remove('on');scanCount=0;
   if(!scanner)scanner=createScanner({video:$('sVideo'),onCode:handleIsbn,onStatus:scanStatus});scanner.start();});
-function closeScan(){$('scan').classList.remove('open');if(scanner)scanner.stop();}
+function closeScan(){$('scan').classList.remove('open');treasure.reset();if(scanner)scanner.stop();}
 $('scanClose').addEventListener('click',closeScan);
 $('sManualGo').addEventListener('click',()=>{const v=$('sManual').value.replace(/[^0-9Xx]/g,'');const d=v.length===10?null:v;
   if(v.length===13&&/^97[89]/.test(v)){handleIsbn(v);$('sManual').value='';}else if(v.length===10){fetch('/api/isbn?isbn='+v).then(r=>r.ok?r.json():null).then(i=>{if(i)handleIsbn(i.isbn);else scanStatus('そのISBNの本が見つかりませんでした');});$('sManual').value='';}else scanStatus('ISBNは978から始まる13桁（または10桁）で入れてね');});
 $('sManual').addEventListener('keydown',e=>{if(e.key==='Enter')$('sManualGo').click();});
-addEventListener('keydown',e=>{if(e.key==='Escape'){closeScan();closeWish();}});
+addEventListener('keydown',e=>{if(e.key==='Escape'){closeScan();journal.close();}});
 loadCast(p=>{$('loadNote').textContent=`館の人々が集まっています… ${Math.round(p*100)}%`;})
   .then(cast=>{people=createPeople({scene,cast,seats,W,L,counters:COUNTERS});$('loadNote').textContent='';})
   .catch(e=>{console.error(e);$('loadNote').textContent='登場人物を読み込めませんでした';});

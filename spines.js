@@ -6,8 +6,10 @@ const COLS = Math.floor(W / CW), ROWS = Math.floor(H / CH), CAP = COLS * ROWS;
 const ROTATE = /[ー－―─—〜～…‥（）()「」『』【】\-~]/; // 縦書きで90度回す文字
 const FONT = '"Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif';
 
+const latin = (s) => { const a = Array.from(s || ''); let n = 0; for (const c of a) if (c.charCodeAt(0) < 0x2e80) n++; return a.length > 0 && n > a.length * 0.7; };
 export const spineTitle = (t) => {
   const main = (t || '').split(/[－―]/)[0].replace(/[（(][^）)]*[）)]/g, '').replace(/^[「『]|[」』]$/g, '').trim() || t;
+  if (latin(main)) return main.length > 60 ? main.slice(0, 59) + '…' : main;
   return main.length > 15 ? main.slice(0, 14) + '…' : main;
 };
 
@@ -26,6 +28,23 @@ export function createSpineAtlas(anisotropy = 4) {
     const x0 = (i % COLS) * CW, y0 = Math.floor(i / COLS) * CH;
     ctx.clearRect(x0, y0, CW, CH);
     const s = titles[i]; if (!s) return;
+    if (latin(s)) {
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x0, y0, CW, CH); ctx.clip();
+      ctx.translate(x0 + CW / 2, y0 + CH * 0.1);
+      ctx.rotate(Math.PI / 2);
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      const room = CH * 0.8;
+      let fs = 14;
+      ctx.font = '700 ' + fs + 'px Georgia, serif';
+      while (ctx.measureText(s).width > room && fs > 9) { fs--; ctx.font = '700 ' + fs + 'px Georgia, serif'; }
+      let text = s;
+      let cut = s.length;
+      while (ctx.measureText(text).width > room && cut > 4) { cut--; text = s.slice(0, cut) + '…'; }
+      ctx.fillText(text, 0, 0);
+      ctx.restore();
+      return;
+    }
     const chars = [...s];
     const top = y0 + CH * 0.13, room = CH * 0.74;
     const fs = Math.max(10, Math.min(17, Math.floor(room / (chars.length * 1.02))));

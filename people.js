@@ -6,6 +6,11 @@ import { CHAR_SCALE, WALK_SPEED_AT_1X } from './characters.js';
 const turnTo = (obj, target, k) => { let d = target - obj.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); obj.rotation.y += d * Math.min(1, k); };
 
 export function createPeople({ scene, cast, seats, W, L, counters }) {
+  const ANNEX_SEATS = [];
+  [-24.5, -13.5].forEach((tx) => [-1.6, 0, 1.6].forEach((dx) => [-1, 1].forEach((s) => ANNEX_SEATS.push({ x: tx + dx, z: -28.6 + s * 1.0, ry: s < 0 ? 0 : Math.PI }))));
+  [[13.2, -27.6], [21.8, -27.9]].forEach(([cx, cz]) => [0, 1, 2].forEach((k) => { const a = k * Math.PI * 2 / 3 + 0.4; const x = cx + Math.cos(a) * 0.95, z = cz + Math.sin(a) * 0.95; ANNEX_SEATS.push({ x, z, ry: Math.atan2(cx - x, cz - z), cafe: true }); }));
+  const ANNEX_SPOTS = [-27, -24, -20.5, -16.2, -12, -9].map((x) => ({ x, z: -32.9, ry: Math.PI })).concat([8.6, 11, 14, 17, 20, 23, 25.8, 28].map((x) => ({ x, z: -32.9, ry: Math.PI })), [{ x: -7.55, z: -25.2, ry: -Math.PI / 2 }, { x: 28.9, z: -28.8, ry: Math.PI / 2 }, { x: 0, z: -32.6, ry: Math.PI }]);
+  const HUB = -32.4;
   const inside = [], readers = [], staff = [], outside = [], guards = [];
   const add = (a, x, z, ry = 0) => { a.root.position.set(x, 0, z); a.root.rotation.y = ry; scene.add(a.root); return a; };
 
@@ -55,14 +60,14 @@ export function createPeople({ scene, cast, seats, W, L, counters }) {
 
   // ---- 中庭：見回りの騎士
   for (let i = 0; i < 3; i++) {
-    const a = add(cast.spawn('Knight', { gear: ['1H_Sword', 'Badge_Shield'] }), W + 6 + i * 3.2, rand(-30, 30));
+    const a = add(cast.spawn('Knight', { gear: ['1H_Sword', 'Badge_Shield'] }), W + 6 + i * 3.2, rand(-20, 30));
     a.play('Walking_A', { timeScale: 1.1 / WALK_SPEED_AT_1X });
     outside.push({ kind: 'patrol', a, dir: Math.random() < 0.5 ? 1 : -1, speed: 1.1, pause: 0 });
   }
   // ---- 中庭：魔導士
   const burstGeo = new THREE.SphereGeometry(0.12, 16, 12);
   for (let i = 0; i < 3; i++) {
-    const a = add(cast.spawn('Mage', { gear: ['2H_Staff'] }), rand(W + 10, W + 24), rand(-26, 26), rand(-Math.PI, Math.PI));
+    const a = add(cast.spawn('Mage', { gear: ['2H_Staff'] }), rand(W + 10, W + 24), rand(-20, 26), rand(-Math.PI, Math.PI));
     a.play('Idle');
     const col = pick([0x66ccff, 0xff9944, 0xb388ff, 0x77ffaa]);
     const burst = new THREE.Mesh(burstGeo, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
@@ -84,6 +89,38 @@ export function createPeople({ scene, cast, seats, W, L, counters }) {
     outside.push({ kind: 'patrol', a, dir: i ? 1 : -1, speed: 1.2, pause: 0 });
   }
 
+  // ---- 北の翼廊：論文を読む人、雑誌をめくる人、カフェでくつろぐ人
+  const annexW = [], annexR = [], strollers = [];
+  const aspot = () => { const s = pick(ANNEX_SPOTS); return { x: s.x + rand(-0.35, 0.35), z: s.z, ry: s.ry }; };
+  ANNEX_SEATS.slice().sort(() => Math.random() - 0.5).slice(0, 8).forEach((st, i) => {
+    const m = st.cafe ? pick(['Rogue', 'Knight', 'Barbarian']) : (i % 2 ? 'Mage' : 'Rogue_Hooded');
+    const gear = st.cafe ? (m === 'Barbarian' ? ['Mug'] : []) : (m === 'Mage' ? ['Spellbook_open'] : []);
+    const a = cast.spawn(m, { gear });
+    add(a, st.x + Math.sin(st.ry) * hipBack, st.z + Math.cos(st.ry) * hipBack, st.ry);
+    a.root.position.y = 0.1;
+    const act = a.play('Sit_Chair_Idle');
+    if (act) act.time = rand(0, 3);
+    annexR.push({ a });
+  });
+  [['Mage', ['Spellbook']], ['Rogue', []], ['Rogue_Hooded', []], ['Mage', []], ['Knight', []], ['Barbarian', []]].forEach(([m, gear]) => {
+    const s = aspot();
+    const a = add(cast.spawn(m, { gear }), s.x, s.z, s.ry);
+    a.play('Idle');
+    annexW.push({ a, path: [], wait: rand(0, 6), spot: s, speed: rand(0.7, 0.9), acted: false });
+  });
+  function aplan(w) {
+    const n = aspot();
+    const c = w.a.root.position;
+    w.path = [{ x: c.x, z: HUB }, { x: n.x, z: HUB }, { x: n.x, z: n.z }];
+    w.spot = n; w.acted = false;
+  }
+  // ---- 前庭：噴水のまわりを散歩する人
+  [0, 1, 2].forEach((k) => {
+    const a = cast.spawn(['Rogue', 'Mage', 'Rogue_Hooded'][k], { gear: [] });
+    add(a, -3.5, 34.5);
+    a.play('Walking_B', { timeScale: 1 / WALK_SPEED_AT_1X });
+    strollers.push({ a, ang: k * 2.1, r: 4.2 + k * 0.7, sp: 0.85 + k * 0.1, dir: k === 1 ? -1 : 1 });
+  });
   const tmp = new THREE.Vector3();
   let counts = { inside: 0, outside: 0 };
 
@@ -122,6 +159,39 @@ export function createPeople({ scene, cast, seats, W, L, counters }) {
       if (!near) s.greeted = false;
       if (s.a.current && !s.a.current.isRunning()) s.a.play('Idle');
     });
+    const nearAnnex = !player || player.z < -14;
+    const nA = Math.round(annexW.length * Math.max(activity, 0.5));
+    annexW.forEach((w, i) => {
+      const on = i < nA; w.a.root.visible = on; if (!on || !nearAnnex) return;
+      w.a.mixer.update(dt);
+      const r = w.a.root;
+      if (w.wait > 0) {
+        w.wait -= dt;
+        turnTo(r, w.spot.ry, dt * 3);
+        if (!w.acted && w.wait < 2.4 && Math.random() < 0.5) { w.a.play(pick(['Interact', 'PickUp', 'Use_Item']), { loop: false, fade: 0.25 }); w.acted = true; }
+        else if (w.a.current && !w.a.current.isRunning()) w.a.play('Idle');
+        if (w.wait <= 0) aplan(w);
+        return;
+      }
+      const t = w.path[0];
+      if (!t) { w.wait = rand(5, 12); w.a.play('Idle'); return; }
+      const dx = t.x - r.position.x, dz = t.z - r.position.z, d = Math.hypot(dx, dz);
+      if (d < 0.08) { w.path.shift(); if (!w.path.length) { w.wait = rand(5, 12); w.a.play('Idle'); } return; }
+      w.a.play('Walking_A', { timeScale: w.speed / WALK_SPEED_AT_1X });
+      const st = Math.min(d, w.speed * dt); r.position.x += dx / d * st; r.position.z += dz / d * st;
+      turnTo(r, Math.atan2(dx, dz), dt * 8);
+    });
+    const nAR = Math.round(annexR.length * Math.max(activity, 0.5));
+    annexR.forEach((rd, i) => { const on = i < nAR; rd.a.root.visible = on; if (on && nearAnnex) rd.a.mixer.update(dt); });
+    const nearCourt = !player || player.z > 12 || player.x > 5;
+    strollers.forEach((s, i) => {
+      const on = activity > 0.25 || i === 0; s.a.root.visible = on; if (!on || !nearCourt) return;
+      s.a.mixer.update(dt);
+      s.ang += s.dir * s.sp / s.r * dt;
+      const r = s.a.root;
+      r.position.set(-3.5 + Math.cos(s.ang) * s.r, 0, 34.5 + Math.sin(s.ang) * s.r);
+      r.rotation.y = Math.atan2(-Math.sin(s.ang) * s.dir, Math.cos(s.ang) * s.dir);
+    });
     let nOut = 0;
     outside.forEach((o) => {
       const r = o.a.root;
@@ -132,7 +202,7 @@ export function createPeople({ scene, cast, seats, W, L, counters }) {
         o.a.setSpeed(sp / WALK_SPEED_AT_1X);
         r.position.z += o.dir * sp * dt;
         turnTo(r, o.dir > 0 ? 0 : Math.PI, dt * 6);
-        if (Math.abs(r.position.z) > 34) { r.position.z = clamp(r.position.z, -34, 34); o.pause = rand(1.5, 3); o.a.play('Idle'); }
+        const zmin = r.position.x < 31.5 ? -21.4 : -34; if (r.position.z > 34 || r.position.z < zmin) { r.position.z = clamp(r.position.z, zmin, 34); o.pause = rand(1.5, 3); o.a.play('Idle'); }
       } else if (o.kind === 'cast') {
         const vis = activity > 0.3; r.visible = vis; o.burst.visible = vis; if (!vis) return;
         o.a.mixer.update(dt); nOut++;
