@@ -10,12 +10,18 @@ const headers = (version) => ({
 });
 const text = (p) => (p?.title || p?.rich_text || []).map((t) => t.plain_text).join('').trim();
 
+// 空白（改行・タブ・全角空白を含む）を扱う小さな道具
+const sp = (s) => Array.from(String(s || '')).map((c) => (c.trim() === '' ? ' ' : c)).join('');
+const nows = (s) => Array.from(String(s || '')).filter((c) => c.trim() !== '').join('');
+const squash = (s) => sp(s).split(' ').filter(Boolean).join(' ');
+
 export function parseRound(prize, s) {
-  const n = +(((s || '').match(/第\s*(\d+)\s*回/) || (s || '').match(/(\d+)\s*回/) || (s || '').match(/(\d+)/) || [])[1]) || 0;
-  let y = +((s || '').match(/(1[89]\d\d|20\d\d)年/) || [])[1] || null;
-  const era = (s || '').match(/(昭和|平成|令和)(元|\d+)年/);
+  const t = sp(s);
+  const n = +((t.match(/第 *([0-9]+) *回/) || t.match(/([0-9]+) *回/) || t.match(/([0-9]+)/) || [])[1]) || 0;
+  let y = +((t.match(/(1[89][0-9]{2}|20[0-9]{2})年/) || [])[1]) || null;
+  const era = t.match(/(昭和|平成|令和)(元|[0-9]+)年/);
   if (!y && era) y = { 昭和: 1925, 平成: 1988, 令和: 2018 }[era[1]] + (era[2] === '元' ? 1 : +era[2]);
-  const half = /上半期/.test(s) ? '上' : /下半期/.test(s) ? '下' : '';
+  const half = t.includes('上半期') ? '上' : t.includes('下半期') ? '下' : '';
   const label = half && y ? `第${n}回（${y}年${half}半期）` : `第${n}回` + (y ? `（${y}年）` : '');
   return { n, y, label };
 }
@@ -39,7 +45,7 @@ export async function readNotion() {
       const t = text(p['小説タイトル']).replace(/^「|」$/g, '');
       const prize = p['賞タイトル']?.select?.name;
       if (!t || !prize || /^該当|^受賞作なし/.test(t)) continue;
-      const a = text(p['作者']).replace(/\s+/g, '');
+      const a = nows(text(p['作者']));
       const { n, y, label } = parseRound(prize, text(p['何回']));
       rows.push([t, a === '-' ? '' : a, prize, n, y, label, p['読了']?.checkbox ? 1 : 0]);
     }
@@ -51,7 +57,7 @@ export async function readNotion() {
 
 // 日本文学振興会の最新情報ページから、最新回の受賞作を読む
 const OFFICIAL = { 芥川賞: 'https://bungakushinko.or.jp/award/akutagawa/index.html', 直木賞: 'https://bungakushinko.or.jp/award/naoki/index.html' };
-const strip = (h) => h.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+const strip = (h) => squash(h.replace(/<br[^>]*>/gi, ' ').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&'));
 export async function readOfficialLatest() {
   const out = [];
   for (const [prize, url] of Object.entries(OFFICIAL)) {
@@ -59,15 +65,17 @@ export async function readOfficialLatest() {
       const r = await fetch(url, { headers: { 'User-Agent': 'my-library/1.0' } });
       if (!r.ok) continue;
       const html = await r.text();
+      const flat = sp(html);
       const word = prize === '芥川賞' ? '芥川' : '直木';
-      const head = html.match(new RegExp('第\\s*(\\d+)\\s*回[^<（(]*?' + word + '[\\s\\S]{0,120}?[（(]\\s*(\\d{4})\\s*年\\s*(上|下)\\s*半期'));
+      const head = flat.match(new RegExp('第 *([0-9]+) *回[^<（(]*?' + word + '.{0,120}?[（(] *([0-9]{4}) *年 *(上|下) *半期'));
       if (!head) continue;
       const n = +head[1], y = +head[2], half = head[3];
       if (/該当作(品)?なし/.test(strip(html).slice(0, 4000))) continue;
-      for (const tr of html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)) {
-        const cells = [...tr[1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)].map((c) => strip(c[1]));
+      for (const chunk of flat.split(/<tr[^>]*>/i).slice(1)) {
+        const rowHtml = chunk.split(/<[/]tr>/i)[0];
+        const cells = rowHtml.split(/<t[dh][^>]*>/i).slice(1).map((c) => strip(c.split(/<[/]t[dh]>/i)[0]));
         if (cells.length < 2 || !/受賞/.test(cells[0])) continue;
-        const author = cells[0].replace(/[（(][^）)]*[）)]/g, '').replace(/受賞/g, '').replace(/\s+/g, '').trim();
+        const author = nows(cells[0].replace(/[（(][^）)]*[）)]/g, '').replace(/受賞/g, ''));
         const title = cells[1].replace(/^[「『]|[」』]$/g, '').replace(/[（(][^）)]*[）)]$/, '').trim();
         if (title && author) out.push([title, author, prize, n, y, `第${n}回（${y}年${half}半期）`, 0]);
       }
@@ -76,7 +84,7 @@ export async function readOfficialLatest() {
   return out;
 }
 
-// Notion に行を1つ追加（「何回」は既存の書き方 "175回(2026年上半期)" に合わせる）
+// Notion に行を1つ追加（「何回」は既存の書き方 175回(2026年上半期) に合わせる）
 export async function addToNotion([t, a, prize, n, y, label]) {
   const half = (label.match(/(上|下)半期/) || [])[1];
   const kai = half ? `${n}回(${y}年${half}半期)` : label;
@@ -92,7 +100,7 @@ export async function addToNotion([t, a, prize, n, y, label]) {
   if (!r.ok) throw new Error(`Notion ${r.status}: ${await r.text()}`);
 }
 
-const key = (t) => (t || '').normalize('NFKC').replace(/[\s「」『』・]/g, '').toLowerCase();
+const key = (t) => nows(String(t || '').normalize('NFKC')).replace(/[「」『』・]/g, '').toLowerCase();
 export function missing(latest, rows) {
   const have = new Set(rows.map((r) => r[2] + '|' + key(r[0])));
   return latest.filter((r) => !have.has(r[2] + '|' + key(r[0])));

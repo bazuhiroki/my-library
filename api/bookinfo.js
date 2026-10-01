@@ -3,7 +3,8 @@
 import { normIsbn, lookup, get } from './_isbn.js';
 
 const KEY = process.env.GOOGLE_BOOKS_API_KEY ? `&key=${process.env.GOOGLE_BOOKS_API_KEY}` : '';
-const norm = (s) => (s || '').normalize('NFKC').toLowerCase().replace(/[\s・\-－―─「」『』()（）:：、。!！?？.,]/g, '');
+const nows = (s) => Array.from(String(s || '')).filter((c) => c.trim() !== '').join('');
+const norm = (s) => nows(String(s || '').normalize('NFKC').toLowerCase()).replace(/[・「」『』()（）:：、。!！?？.,－―─-]/g, '');
 const mainTitle = (t) => (t || '').split(/[－―]/)[0].replace(/[（(][^）)]*[）)]/g, '').replace(/^[「『]|[」』]$/g, '').trim();
 const isbnOf = (v) => { const ids = v.industryIdentifiers || []; const x = ids.find((i) => i.type === 'ISBN_13') || ids.find((i) => i.type === 'ISBN_10'); return x ? normIsbn(x.identifier) : null; };
 const thumb = (v) => { const l = v.imageLinks || {}; const u = l.large || l.medium || l.thumbnail || l.smallThumbnail || ''; return u.replace('http://', 'https://').replace('&edge=curl', ''); };
@@ -28,7 +29,7 @@ function score(v, title, author) {
 
 export default async function handler(req, res) {
   const title = String(req.query.title || '').slice(0, 200);
-  const author = String(req.query.author || '').replace(/[\s　]+/g, '').slice(0, 100);
+  const author = nows(req.query.author).slice(0, 100);
   let isbn = normIsbn(req.query.isbn);
   if (!title && !isbn) return res.status(400).json({ error: '書名かISBNが必要です' });
 

@@ -15,8 +15,21 @@ async function get(url, ms = 4500) {
   try { const r = await fetch(url, { signal: c.signal, headers: { 'User-Agent': 'my-library/1.0 (personal reading app)' } }); return r.ok ? r : null; }
   catch (_) { return null; } finally { clearTimeout(t); }
 }
-const splitAuthors = (s) => (s || '').split(/[,，、;；\/／]| {2,}|　/).map((a) => a.replace(/\[?(著|作|訳|編|編著|監修|絵|文|原作|著者|作者)\]?$/g, '').replace(/^(著|作)[:：]/, '').trim()).filter((a) => a && !/^(著|訳|編|絵)$/.test(a));
-const unescape = (s) => (s || '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+
+// 著者欄を分けて、末尾の「著」「訳」などの役割を取り除く
+const ROLES = ['著者', '作者', '編著', '監修', '原作', '著', '作', '訳', '編', '絵', '文'];
+function cleanAuthor(a) {
+  let x = a.trim();
+  for (const r of ROLES) {
+    for (const w of [r, '[' + r + ']', '［' + r + '］']) {
+      if (x.endsWith(w) && x.length > w.length) x = x.slice(0, x.length - w.length).trim();
+    }
+  }
+  if (x.startsWith('著:') || x.startsWith('著：') || x.startsWith('作:') || x.startsWith('作：')) x = x.slice(2).trim();
+  return x;
+}
+const splitAuthors = (s) => (s || '').split(/[,，、;；/／]| {2,}|　/).map(cleanAuthor).filter((a) => a && !ROLES.includes(a));
+const unescape = (s) => (s || '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, String.fromCharCode(34)).replace(/&#39;/g, String.fromCharCode(39)).replace(/&amp;/g, '&');
 
 export async function lookup(isbn) {
   const info = { isbn, title: '', authors: [], publisher: '', description: '', cover: '' };
@@ -47,8 +60,14 @@ export async function lookup(isbn) {
   if (!info.title) {
     const r3 = await get(`https://ndlsearch.ndl.go.jp/api/opensearch?isbn=${isbn}&cnt=1`);
     if (r3) {
-      const x = await r3.text(); const item = (x.match(/<item>([\s\S]*?)<\/item>/) || [])[1] || '';
-      const tag = (n) => unescape(((item.match(new RegExp(`<${n}[^>]*>([\\s\\S]*?)</${n}>`)) || [])[1] || '').trim());
+      const x = await r3.text();
+      const s0 = x.indexOf('<item>'), s1 = x.indexOf('</item>');
+      const item = s0 >= 0 && s1 > s0 ? x.slice(s0 + 6, s1) : '';
+      const tag = (n) => {
+        const a = item.indexOf('<' + n); if (a < 0) return '';
+        const b = item.indexOf('>', a); const c = item.indexOf('</' + n + '>', b);
+        return b < 0 || c < 0 ? '' : unescape(item.slice(b + 1, c).trim());
+      };
       info.title = tag('title') || tag('dc:title');
       info.authors = splitAuthors(tag('author') || tag('dc:creator'));
       info.publisher = tag('dc:publisher');
