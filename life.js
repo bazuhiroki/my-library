@@ -174,9 +174,29 @@ export function createLife({ scene, M, flameTex, colliders, world }) {
   // ---------------- 人々（キャラクターが読み込まれてから）
   const folk = [];
   let ready = false;
-  function sit(cast, model, gear, seat) {
+  // ドワーフ：背が低くがっしり、豊かなひげと三つ編み
+  const BEARDS = [0xb5532a, 0x6b3f22, 0x9a948c, 0x3a2a20, 0xd08a3a];
+  function dwarfify(a, color) {
+    const inner = a.root.children[0];
+    inner.scale.set(CHAR_SCALE * 1.14, CHAR_SCALE * 0.78, CHAR_SCALE * 1.14);
+    const head = a.root.getObjectByName('head');
+    if (!head) return a;
+    const m = std({ color, roughness: 0.85 });
+    const beard = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.95, 12), m);
+    beard.rotation.x = Math.PI; beard.scale.set(1, 1, 0.55); beard.position.set(0, -0.2, 0.43); beard.castShadow = true; head.add(beard);
+    const mus = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.06, 6, 16, Math.PI), m); mus.rotation.z = Math.PI; mus.position.set(0, 0.2, 0.56); head.add(mus);
+    [-1, 1].forEach((s) => {
+      const br = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.035, 0.55, 6), m); br.position.set(s * 0.2, -0.62, 0.42); head.add(br);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.02, 6, 12), M.gold); ring.rotation.x = Math.PI / 2; ring.position.set(s * 0.2, -0.78, 0.42); head.add(ring);
+    });
+    a.dwarf = true;
+    return a;
+  }
+  function sit(cast, model, gear, seat, dwarf) {
     const a = cast.spawn(model, { gear });
-    a.root.position.set(seat.x + Math.sin(seat.ry) * HIP, (seat.h || 0.48) - 0.38, seat.z + Math.cos(seat.ry) * HIP);
+    if (dwarf) dwarfify(a, pick(BEARDS));
+    const sy = dwarf ? 0.78 : 1, sx = dwarf ? 1.14 : 1;
+    a.root.position.set(seat.x + Math.sin(seat.ry) * HIP * sx, (seat.h || 0.48) - 0.38 * sy, seat.z + Math.cos(seat.ry) * HIP * sx);
     a.root.rotation.y = seat.ry;
     scene.add(a.root);
     const act = a.play('Sit_Chair_Idle');
@@ -210,14 +230,14 @@ export function createLife({ scene, M, flameTex, colliders, world }) {
     // 焚き火：読んだ本の話をする仲間（ビールを片手に）
     campSeats.forEach((s, i) => {
       const model = ['Barbarian', 'Mage', 'Rogue', 'Knight'][i];
-      const a = sit(cast, model, model === 'Barbarian' ? ['Mug'] : (model === 'Mage' ? ['Spellbook_open'] : []), s);
-      add({ a, kind: i === 1 ? 'campread' : 'camp', rec: pickRec(), hours: [0, 24], cheer: rand(6, 16) });
+      const a = sit(cast, model, model === 'Barbarian' ? ['Mug'] : (model === 'Mage' ? ['Spellbook_open'] : []), s, model === 'Barbarian');
+      add({ a, kind: i === 1 ? 'campread' : 'camp', rec: pickRec(), hours: [0, 24], cheer: rand(6, 16), dwarf: model === 'Barbarian' });
     });
     // 桟橋の釣り人
     [[-43.3, 30.55], [-43.3, 31.45]].forEach(([x, z], i) => {
       box(woodDark, 0.4, 0.32, 0.4, x - 0.35, PIER.y + 0.2, z);
       const s = { x: x - 0.35, z, ry: -Math.PI / 2, h: PIER.y + 0.36 };
-      const a = sit(cast, i ? 'Barbarian' : 'Rogue_Hooded', [], s);
+      const a = sit(cast, i ? 'Barbarian' : 'Rogue_Hooded', [], s, !!i);
       const rodBase = new THREE.Vector3(x - 0.75, 0.9, z + (i ? 0.12 : -0.12));
       const tip = new THREE.Vector3(x - 2.7, 2.3, z + (i ? 0.6 : -0.6));
       const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.02, rodBase.distanceTo(tip), 5), std({ color: 0x3a2a1a, roughness: 0.6 }));
@@ -229,19 +249,30 @@ export function createLife({ scene, M, flameTex, colliders, world }) {
       const lg = new THREE.BufferGeometry().setFromPoints([tip, bob.position.clone()]);
       const line = new THREE.Line(lg, new THREE.LineBasicMaterial({ color: 0xdddddd, transparent: true, opacity: 0.6 }));
       scene.add(line);
-      add({ a, kind: 'fish', props: [rod, bob, line], fish: { bob, lg, tip, t: rand(0, 6), bite: rand(8, 25) }, hours: [5, 19.5] });
+      add({ a, kind: 'fish', props: [rod, bob, line], fish: { bob, lg, tip, t: rand(0, 6), bite: rand(8, 25) }, hours: [5, 19.5], dwarf: !!i });
     });
     // ビアガーデン：乾杯する人たち
     beerSeats.forEach((s, i) => {
-      const model = ['Barbarian', 'Knight', 'Rogue', 'Mage', 'Rogue_Hooded'][i % 5];
-      const a = sit(cast, model, model === 'Barbarian' ? ['Mug'] : [], s);
-      add({ a, kind: 'beer', hours: [15, 24], cheer: rand(4, 14) });
+      const dw = i % 2 === 0;
+      const model = dw ? 'Barbarian' : ['Knight', 'Rogue', 'Mage'][i % 3];
+      const a = sit(cast, model, dw ? ['Mug'] : [], s, dw);
+      add({ a, kind: 'beer', hours: [15, 24], cheer: rand(4, 14), dwarf: dw });
     });
     // 前庭のベンチで読む人
     [{ x: -12 + 0.4, z: 36, ry: 0, h: 0.48 }, { x: 4.5, z: 38.1, ry: Math.PI / 2, h: 0.48 }].forEach((s, i) => {
       const a = sit(cast, i ? 'Mage' : 'Rogue', [], s);
       const b = openBook(s.x + Math.sin(s.ry) * 0.5, 0.82, s.z + Math.cos(s.ry) * 0.5, s.ry, 0.35); b.rotation.x = -0.7;
       add({ a, kind: 'read', rec: pickRec(), props: [b], hours: [7, 18.5] });
+    });
+    // 前庭と中庭を見回るドワーフ
+    const LOOP = [[1, 29.5], [13, 30.5], [15, 38.5], [30, 38.5], [34, 22], [34, -12], [22, -15], [14, -2], [14, 29.5]];
+    [0, 1].forEach((k) => {
+      const a = dwarfify(cast.spawn('Barbarian', { gear: k ? ['1H_Axe'] : ['Mug'] }), pick(BEARDS));
+      const i0 = k * 4;
+      a.root.position.set(LOOP[i0][0], 0, LOOP[i0][1]);
+      scene.add(a.root);
+      a.play('Walking_A', { timeScale: 0.62 / (WALK_SPEED_AT_1X * 0.78) });
+      add({ a, kind: 'dwarfwalk', walk: { i: (i0 + 1) % LOOP.length, loop: LOOP, sp: 0.62, rest: 0 }, hours: [6, 23], dwarf: true, axe: !!k });
     });
     // 湖畔を散歩するふたり
     const stroll = { ang: rand(0, 6), r1: LAKE.rx + 4, r2: LAKE.rz + 4, sp: 0.5 };
@@ -298,6 +329,15 @@ export function createLife({ scene, M, flameTex, colliders, world }) {
         r.position.set(LAKE.x + s.r1 * c + (-tz / tl) * f.side, 0, LAKE.z + s.r2 * si + (tx / tl) * f.side);
         r.rotation.y = Math.atan2(tx, tz);
       }
+      if (f.walk) {
+        const W = f.walk;
+        if (W.rest > 0) { W.rest -= dt; if (W.rest <= 0 && near) f.a.play('Walking_A', { timeScale: W.sp / (WALK_SPEED_AT_1X * 0.78) }); }
+        else {
+          const t = W.loop[W.i]; const dx = t[0] - r.position.x, dz = t[1] - r.position.z, d = Math.hypot(dx, dz);
+          if (d < 0.1) { W.i = (W.i + 1) % W.loop.length; if (Math.random() < 0.3) { W.rest = rand(4, 9); if (near) f.a.play(Math.random() < 0.5 ? 'Cheer' : 'Idle'); } }
+          else { const st = Math.min(d, W.sp * dt); r.position.x += dx / d * st; r.position.z += dz / d * st; const ty = Math.atan2(dx, dz); let dy = ty - r.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); r.rotation.y += dy * Math.min(1, dt * 6); }
+        }
+      }
       if (f.fish) {
         const F = f.fish; F.t += dt;
         const biting = F.t > F.bite && F.t < F.bite + 1.6;
@@ -322,10 +362,11 @@ export function createLife({ scene, M, flameTex, colliders, world }) {
     read: (f) => [T(f), '　' + (f.rec && f.rec.a ? f.rec.a + '　' : '') + 'を読んでいる'],
     cafe: (f) => [T(f), '　コーヒーを片手に読んでいる'],
     coffee: () => ['木陰のカフェ', '　コーヒーで読書談義'],
-    camp: (f) => ['焚き火のまわり', '　' + (f.rec ? T(f) + 'の話で盛り上がっている' : '本の話で盛り上がっている')],
+    camp: (f) => [f.dwarf ? '焚き火のドワーフ' : '焚き火のまわり', '　' + (f.rec ? T(f) + 'の話で盛り上がっている' : '本の話で盛り上がっている')],
     campread: (f) => [T(f), '　焚き火の明かりで読んでいる'],
-    fish: () => ['桟橋の釣り人', '　浮きをじっと見つめている'],
-    beer: () => ['ビアガーデン', '　ビールで乾杯！'],
+    fish: (f) => [f.dwarf ? 'ドワーフの釣り人' : '桟橋の釣り人', '　浮きをじっと見つめている'],
+    beer: (f) => (f.dwarf ? ['ドワーフの酒盛り', '　ジョッキを掲げて乾杯！'] : ['ビアガーデン', '　ビールで乾杯！']),
+    dwarfwalk: (f) => ['ドワーフ', f.axe ? '　斧をかついで見回り中' : '　ジョッキ片手にご機嫌で散歩中'],
     stroll: () => ['湖畔を散歩するふたり', ''],
     inside: (f) => [T(f), '　' + (f.drink === 'beer' ? 'ビールを片手に' : f.drink === 'coffee' ? 'コーヒーを片手に' : '') + 'ぼくの本を読んでいる'],
   };
