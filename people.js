@@ -6,6 +6,7 @@ import { CHAR_SCALE, WALK_SPEED_AT_1X } from './characters.js';
 const turnTo = (obj, target, k) => { let d = target - obj.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); obj.rotation.y += d * Math.min(1, k); };
 
 export function createPeople({ scene, cast, seats, W, L, counters }) {
+  const seated = []; // 座って読む人（本や飲み物を添えるため life.js に渡す）
   const ANNEX_SEATS = [];
   [-24.5, -13.5].forEach((tx) => [-1.6, 0, 1.6].forEach((dx) => [-1, 1].forEach((s) => ANNEX_SEATS.push({ x: tx + dx, z: -28.6 + s * 1.0, ry: s < 0 ? 0 : Math.PI }))));
   [[13.2, -27.6], [21.8, -27.9]].forEach(([cx, cz]) => [0, 1, 2].forEach((k) => { const a = k * Math.PI * 2 / 3 + 0.4; const x = cx + Math.cos(a) * 0.95, z = cz + Math.sin(a) * 0.95; ANNEX_SEATS.push({ x, z, ry: Math.atan2(cx - x, cz - z), cafe: true }); }));
@@ -41,6 +42,7 @@ export function createPeople({ scene, cast, seats, W, L, counters }) {
     const act = a.play('Sit_Chair_Idle');
     if (act) act.time = rand(0, 3);
     readers.push({ a });
+    seated.push({ a, x: st.x, z: st.z, ry: st.ry, top: 0.83 });
   });
 
   // ---- 入口の衛兵
@@ -101,6 +103,7 @@ export function createPeople({ scene, cast, seats, W, L, counters }) {
     const act = a.play('Sit_Chair_Idle');
     if (act) act.time = rand(0, 3);
     annexR.push({ a });
+    seated.push({ a, x: st.x, z: st.z, ry: st.ry, top: st.cafe ? 0.79 : 0.83 });
   });
   [['Mage', ['Spellbook']], ['Rogue', []], ['Rogue_Hooded', []], ['Mage', []], ['Knight', []], ['Barbarian', []]].forEach(([m, gear]) => {
     const s = aspot();
@@ -232,5 +235,5 @@ export function createPeople({ scene, cast, seats, W, L, counters }) {
     });
     counts = { inside: nIn + nRd + guards.length + staff.length, outside: nOut };
   }
-  return { update, get counts() { return counts; } };
+  return { update, seated, get counts() { return counts; } };
 }

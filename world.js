@@ -35,6 +35,10 @@ export const WARPS = [
   { id: 'court0', name: '前庭（大扉の外）', area: 'out', x: 0, z: 25.2, yaw: Math.PI, pitch: 0.02 },
   { id: 'fountain', name: '噴水のほとり', area: 'out', x: -3.5, z: 39.4, yaw: Math.PI * 0.75, pitch: 0 },
   { id: 'court', name: '中庭', area: 'out', x: 16, z: 6, yaw: -Math.PI / 2, pitch: 0.05 },
+  { id: 'lake', name: '湖の桟橋', area: 'out', x: -36.2, z: 32.6, yaw: Math.PI / 2 + 0.25, pitch: 0 },
+  { id: 'camp', name: '焚き火', area: 'out', x: -33, z: 18.6, yaw: 0, pitch: -0.08 },
+  { id: 'cafe', name: '木陰のカフェ', area: 'out', x: -27.4, z: 31.2, yaw: Math.PI * 0.15, pitch: -0.05 },
+  { id: 'beer', name: 'ビアガーデン', area: 'out', x: 21, z: 41.8, yaw: Math.PI, pitch: -0.05 },
 ];
 
 export function createWorld({ scene, box, mesh, M, textTex, colliders, tex, mapTex, W, L, weather }) {
@@ -380,6 +384,7 @@ export function createWorld({ scene, box, mesh, M, textTex, colliders, tex, mapT
       const x2 = -30 + Math.random() * 360, z2 = 52 + Math.random() * 240;
       const [px, pz] = i % 3 === 2 ? [x2, z2] : [x, z];
       if (px > -26 && pz < 50) continue;
+      if (px > -82 && px < -20 && pz > -4 && pz < 66) continue; // 湖畔の草原はあける
       const s = 0.7 + Math.random() * 0.7;
       d.position.set(px, 0, pz); d.scale.set(s, s * (0.9 + Math.random() * 0.4), s); d.rotation.set(0, Math.random() * 6, 0); d.updateMatrix();
       inst.setMatrixAt(i, d.matrix); i++;
@@ -387,15 +392,22 @@ export function createWorld({ scene, box, mesh, M, textTex, colliders, tex, mapT
     scene.add(inst);
     // 前庭の生け垣
     const hedge = std({ color: 0x3b5a34, roughness: 1 });
-    box(hedge, 0.8, 0.9, 20, -23.6, 0.45, 36.5);
+    // 生け垣（湖へ抜ける門をあける）
+    box(hedge, 0.8, 0.9, 9.2, -23.6, 0.45, 31.1);
+    box(hedge, 0.8, 0.9, 6.2, -23.6, 0.45, 43.4);
+    [35.6, 40.4].forEach((gz) => { box(stoneWall, 0.6, 1.6, 0.6, -23.6, 0.8, gz); const cap = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), M.gold); cap.position.set(-23.6, 1.75, gz); scene.add(cap); });
+    addCol(-24.1, -23.1, 26.5, 35.8); addCol(-24.1, -23.1, 40.2, 46.5);
     box(hedge, 26, 0.9, 0.8, -10.6, 0.45, 47.6);
   }
 
   // ================= 判定と更新 =================
+  const EXTRA = [], BLOCKS = [];
   function walkable(x, z) {
     let ok = false;
     for (const r of REGIONS) if (x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1) { ok = true; break; }
+    if (!ok) for (const r of EXTRA) if (x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1) { ok = true; break; }
     if (!ok) return false;
+    for (const b of BLOCKS) if (b(x, z)) return false;
     if (Math.abs(x) < 1.6 && z > L - 0.4 && z < L + 1.0 && doorOpen < 0.72) return false;
     return true;
   }
@@ -408,7 +420,16 @@ export function createWorld({ scene, box, mesh, M, textTex, colliders, tex, mapT
       if (x > ARCH_X) return z < IN.z0 + 1.6 ? '雑誌の回廊・表紙の棚' : '雑誌の回廊';
       return '翼廊の玄関ホール';
     }
+    if (x < -24) {
+      if (Math.hypot(x + 33, z - 14) < 5) return '焚き火のまわり';
+      if (x < -34 && Math.abs(z - 31) < 0.8) return '湖の桟橋';
+      const dx = (x + 48) / 17, dz = (z - 31) / 13;
+      if (dx * dx + dz * dz < 1) return '湖のほとり';
+      if (Math.hypot(x + 29.5, z - 28) < 3 || Math.hypot(x + 31, z - 51) < 3) return '木陰のカフェ';
+      return '湖へ続く草原';
+    }
     if (z > L + 0.5) {
+      if (x > 17 && x < 25 && z > 42 && z < 47.5) return 'ビアガーデン';
       if (Math.hypot(x - fountain.fx, z - fountain.fz) < 5) return '噴水のほとり';
       if (x > 6.6) return '中庭の入口';
       return '前庭';
@@ -416,7 +437,7 @@ export function createWorld({ scene, box, mesh, M, textTex, colliders, tex, mapT
     if (x > 6.6) return '中庭';
     return null;
   }
-  const outside = (p) => p.z > L + 0.4 || p.x > 6.6;
+  const outside = (p) => p.z > L + 0.4 || p.x > 6.6 || p.x < -24;
   const ray = new THREE.Raycaster(); ray.far = 7;
   function pickBoard(ndc, camera) {
     ray.setFromCamera(ndc, camera);
@@ -445,5 +466,5 @@ export function createWorld({ scene, box, mesh, M, textTex, colliders, tex, mapT
     const w = weather ? weather() : null;
     if (w) { const out = outside(player); const tx = out && player.x < 6.6 ? player.x - 60 : 0; w.forEach((o) => { if (o) o.position.x = tx; }); }
   }
-  return { walkable, zone, update, pickBoard, paperShelves, magSlots, isOutside: outside, get doorOpen() { return doorOpen; } };
+  return { walkable, zone, update, pickBoard, paperShelves, magSlots, isOutside: outside, addWalk: (r) => EXTRA.push(r), addBlock: (fn) => BLOCKS.push(fn), get doorOpen() { return doorOpen; } };
 }

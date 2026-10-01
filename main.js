@@ -18,6 +18,8 @@ import { createJournal } from './journal.js';
 import { createWorld } from './world.js';
 import { createMapTexture, createMapUI } from './mapui.js';
 import { createArchive } from './archive.js';
+import { createArt } from './art.js';
+import { createLife } from './life.js';
 import { createSpineAtlas, patchSpineMaterial } from './spines.js';
 
 let renderer;
@@ -209,6 +211,8 @@ const counterDecor=buildCounters({scene,box,M,textTex,colliders});
 const wishPile=createWishPile({scene,M,textTex,colliders});
 const mapTex=createMapTexture();
 const world=createWorld({scene,box,mesh,M,textTex,colliders,tex:{stoneTex,parquetTex,plasterTex},mapTex,W,L,weather:()=>[rain,snow]});
+const art=createArt({scene,W,SH,VR,EWIN,WW,SILL,SPR,remapUV,archPath});
+const life=createLife({scene,M,flameTex,colliders,world});
 // ================= lights & sky =================
 const hemi=new THREE.HemisphereLight(0xcfe0f0,0x3a2a1c,0.4);scene.add(hemi);
 const amb=new THREE.AmbientLight(0xffd9b0,0.12);scene.add(amb);
@@ -321,6 +325,7 @@ function updateEnv(dt,time){
   vaultLights.forEach(l=>l.intensity=.2+dark*1.6);
   flames.material.opacity=.25+dark*.75;candleMesh.material.emissiveIntensity=.1+dark*.5;
   if(window.__rose)window.__rose.color.setScalar(.18+.82*day*(1-cloud*.5)+S.flash*.5);
+  art.setLight(.18+.82*day*(1-cloud*.5)+S.flash*.5,day*(1-cloud));
   renderer.toneMappingExposure=1.02+dark*.12;
   castleWin.emissiveIntensity=night*2.2+cloud*day*.3;
   torchFlames.forEach((f,i)=>{f.material.opacity=dark>.35?.9:0;f.scale.setScalar(1+Math.sin(time*9+i)*.15);});
@@ -431,7 +436,7 @@ cv.addEventListener('pointermove',e=>{
   if(joy&&e.pointerId===joy.id){let dx=e.clientX-joy.cx,dy=e.clientY-joy.cy;const d=Math.hypot(dx,dy),mx=46;if(d>mx){dx*=mx/d;dy*=mx/d;}knob.style.transform=`translate(${dx}px,${dy}px)`;mv.x=dx/mx;mv.y=dy/mx;}
   else if(look&&e.pointerId===look.id){const s=isTouch?.0055:.0038;player.yaw-=(e.clientX-look.x)*s;player.pitch=clamp(player.pitch-(e.clientY-look.y)*s,-1.3,1.3);look.x=e.clientX;look.y=e.clientY;}});
 function endPtr(e){if(joy&&e.pointerId===joy.id){joy=null;mv.x=mv.y=0;joyEl.classList.remove('on');}
-  if(look&&e.pointerId===look.id){const moved=Math.hypot(e.clientX-look.sx,e.clientY-look.sy);if(e.type==='pointerup'&&moved<9&&performance.now()-look.t<400){const h=hitBook(e.clientX,e.clientY);if(h)openBook(h.wi,h.id);else{ndc.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);const w=wishPile.pick(ndc,camera);if(w){closeBook(true);journal.open(w==='table'?null:w);}else if(archive.pick(ndc,camera)){closeBook(true);}else if(world.pickBoard(ndc,camera)){mapUI.open();}else if(pulled)closeBook(false);}}look=null;}}
+  if(look&&e.pointerId===look.id){const moved=Math.hypot(e.clientX-look.sx,e.clientY-look.sy);if(e.type==='pointerup'&&moved<9&&performance.now()-look.t<400){const h=hitBook(e.clientX,e.clientY);if(h)openBook(h.wi,h.id);else{ndc.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);const w=wishPile.pick(ndc,camera);if(w){closeBook(true);journal.open(w==='table'?null:w);}else if(archive.pick(ndc,camera)){closeBook(true);}else if(world.pickBoard(ndc,camera)){mapUI.open();}else if(life.recAt(camera,player)){const lr=life.recAt(camera,player);closeBook(true);journal.open(lr);}else if(pulled)closeBook(false);}}look=null;}}
 cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
 addEventListener('keydown',e=>{const ae=document.activeElement;if(ae&&/INPUT|TEXTAREA/.test(ae.tagName))return;keys[e.code]=true;});addEventListener('keyup',e=>{keys[e.code]=false;});addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
 function blocked(x,z){if(!world.walkable(x,z))return true;const r=.32;for(const c of colliders)if(x>c.x0-r&&x<c.x1+r&&z>c.z0-r&&z<c.z1+r)return true;return false;}
@@ -455,7 +460,7 @@ function loop(){
   const dt=Math.min(clock.getDelta(),.05),time=clock.elapsedTime;
   if(S.auto)S.hour=(S.hour+dt/20)%24;
   if(S.autoWx){S.nextWx-=dt;if(S.nextWx<0){const r=Math.random();setWx(r<.45?'clear':r<.7?'cloudy':r<.9?'rain':'snow');S.nextWx=rand(3,6)*20;}}
-  updateEnv(dt,time);updateFigures(dt,time);world.update(dt,time,player,S.hour);counterDecor.update(time);if(started)counterUI.update(player);
+  updateEnv(dt,time);updateFigures(dt,time);world.update(dt,time,player,S.hour);life.update(dt,time,started?player:null,S.hour);counterDecor.update(time);if(started)counterUI.update(player);
   if(started)updatePlayer(dt);else{camera.position.set(0,1.62,19.5);camera.rotation.set(.12,Math.sin(time*.15)*.3,0);}
   if(pulled){pulled.t=clamp(pulled.t+dt*3.2*pulled.dir,0,1);const e=1-Math.pow(1-pulled.t,3);setPull(pulled.w,pulled.id,e*.17);if(pulled.dir<0&&pulled.t<=0){setPull(pulled.w,pulled.id,0);pulled=null;}}
   if(warp>0){warp=Math.max(0,warp-dt*1.4);$('warp').style.opacity=(Math.sin(warp*Math.PI)).toFixed(3);}
@@ -463,7 +468,7 @@ function loop(){
   $('clockW').textContent=WX[S.wx].name;
   zoneT-=dt;if(zoneT<0&&started){zoneT=.4;$('zone').textContent=zoneName();}
   hintT-=dt;if(hintT<0&&started&&!pulled){hintT=.22;const h=hitBook(innerWidth/2,innerHeight/2);const el=$('hint');
-    if(!h){ndc.set(0,0);const wp=wishPile.pick(ndc,camera);if(wp){el.innerHTML='';const b=document.createElement('b');b.textContent=wp==='table'?'読みたい本の台':'『'+wp.title+'』';el.append(b,document.createTextNode(wp==='table'?`　${wishPile.count()}冊`:'　読みたい本'));el.classList.add('on');}else{const ah=archive.hint(camera);if(ah){el.innerHTML='';const b=document.createElement('b');b.textContent=ah[0];el.append(b,document.createTextNode(ah[1]));el.classList.add('on');}else if(world.pickBoard(ndc,camera)){el.innerHTML='';const b=document.createElement('b');b.textContent='館内案内図';el.append(b,document.createTextNode('　タップで開く'));el.classList.add('on');}else el.classList.remove('on');}}
+    if(!h){ndc.set(0,0);const wp=wishPile.pick(ndc,camera);if(wp){el.innerHTML='';const b=document.createElement('b');b.textContent=wp==='table'?'読みたい本の台':'『'+wp.title+'』';el.append(b,document.createTextNode(wp==='table'?`　${wishPile.count()}冊`:'　読みたい本'));el.classList.add('on');}else{const ah=archive.hint(camera);if(ah){el.innerHTML='';const b=document.createElement('b');b.textContent=ah[0];el.append(b,document.createTextNode(ah[1]));el.classList.add('on');}else if(world.pickBoard(ndc,camera)){el.innerHTML='';const b=document.createElement('b');b.textContent='館内案内図';el.append(b,document.createTextNode('　タップで開く'));el.classList.add('on');}else{const lh=life.hint(camera,player)||art.hint(camera);if(lh){el.innerHTML='';const b=document.createElement('b');b.textContent=lh[0];el.append(b,document.createTextNode(lh[1]));el.classList.add('on');}else el.classList.remove('on');}}}
     else if(h){const r=RECS[wallMeshes[h.wi].rec[h.id]];el.innerHTML='';const b=document.createElement('b');b.textContent='『'+splitTitle(r.t)[0]+'』';el.append(b,document.createTextNode(isRead(r)?'　読んだ本':''));el.classList.add('on');}}
   renderer.render(scene,camera);requestAnimationFrame(loop);}
 $('enter').addEventListener('click',()=>{started=true;$('intro').classList.add('gone');cv.focus();});
@@ -514,7 +519,7 @@ $('sManualGo').addEventListener('click',()=>{const v=$('sManual').value.replace(
 $('sManual').addEventListener('keydown',e=>{if(e.key==='Enter')$('sManualGo').click();});
 addEventListener('keydown',e=>{if(e.key==='Escape'){closeScan();journal.close();}});
 loadCast(p=>{$('loadNote').textContent=`館の人々が集まっています… ${Math.round(p*100)}%`;})
-  .then(cast=>{people=createPeople({scene,cast,seats,W,L,counters:COUNTERS});$('loadNote').textContent='';})
+  .then(cast=>{people=createPeople({scene,cast,seats,W,L,counters:COUNTERS});life.attach(cast,people);$('loadNote').textContent='';})
   .catch(e=>{console.error(e);$('loadNote').textContent='登場人物を読み込めませんでした';});
 // Notion と公式発表から最新の蔵書を取り込む（取れなければ同梱のデータのまま）
 fetch('/api/books').then(r=>r.ok?r.json():null).then(d=>{if(!d||!Array.isArray(d.rows))return;
