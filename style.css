@@ -398,3 +398,13 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .a-zoom{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top,0px) + 12px) 8px calc(env(safe-area-inset-bottom,0px) + 12px)}
 .a-zoom img{max-width:100%;max-height:calc(100% - 40px);object-fit:contain}
 .a-zoomx{margin-top:10px;font-size:12px;color:#ccc}
+
+/* ===== エルフの肖像 ===== */
+#elfCard{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:rgba(4,6,8,.6);padding:16px}
+#elfCard.open{display:flex;animation:ecIn .9s ease}
+@keyframes ecIn{from{opacity:0}to{opacity:1}}
+#elfCard .ec-in{max-width:420px;width:100%;display:flex;flex-direction:column;gap:6px;align-items:center;background:var(--glass-strong);border:1px solid rgba(216,255,240,.35);border-radius:20px;padding:14px;box-shadow:0 0 40px rgba(190,255,230,.25)}
+#elfCard img{width:100%;border-radius:14px;display:block}
+#elfCard b{font-family:var(--display);font-size:18px;color:#eaf7ef;letter-spacing:.1em;margin-top:6px}
+#elfCard span{font-size:13px;color:var(--text);text-align:center;line-height:1.6}
+#elfCard em{font-style:normal;font-size:11px;color:var(--text-dim)}

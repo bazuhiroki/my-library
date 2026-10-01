@@ -19,7 +19,7 @@ const SPOTS = [
 ];
 const inHours = (h, [a, b]) => h >= a && h < b;
 
-// 紫の衣を若葉色と白金に染め直す（モデルの絵を描き替える）
+// 紫の衣を真珠色の白いドレスに染め直す（モデルの絵を描き替える）
 function elvenTexture(map) {
   const img = map && map.image;
   if (!img || !img.width) return null;
@@ -37,9 +37,9 @@ function elvenTexture(map) {
     if (mx === r) h = ((gg - b) / dd) % 6; else if (mx === gg) h = (b - r) / dd + 2; else h = (r - gg) / dd + 4;
     h *= 60; if (h < 0) h += 360;
     if (h > 230 && h < 330) {
-      // 紫 → 濃い色は若葉色、明るい色は白金
-      const t = l < 0.45 ? [0.26, 0.52, 0.36] : [0.93, 0.89, 0.76];
-      const k = l < 0.45 ? 0.6 + l : 0.85 + (l - 0.45) * 0.3;
+      // 紫 → 真珠色の白いドレス（濃いところは銀灰、明るいところは白）
+      const t = l < 0.45 ? [0.78, 0.8, 0.84] : [0.98, 0.97, 0.94];
+      const k = l < 0.45 ? 0.72 + l * 0.5 : 0.9 + (l - 0.45) * 0.2;
       p[i] = Math.min(255, t[0] * 255 * k * 1.25); p[i + 1] = Math.min(255, t[1] * 255 * k * 1.25); p[i + 2] = Math.min(255, t[2] * 255 * k * 1.25);
     }
   }
@@ -52,9 +52,9 @@ function elvenTexture(map) {
 // 耳・髪・額飾りを頭の骨に付ける
 function adorn(head) {
   const skin = new THREE.MeshStandardMaterial({ color: 0xf1d2b8, roughness: 0.6 });
-  const hair = new THREE.MeshStandardMaterial({ color: 0xf2e8cc, roughness: 0.35, metalness: 0.15, emissive: 0x2a2416, emissiveIntensity: 0.4 });
-  const gold = new THREE.MeshStandardMaterial({ color: 0xd9b45a, roughness: 0.25, metalness: 0.9 });
-  const gem = new THREE.MeshStandardMaterial({ color: 0x8fe0c0, roughness: 0.1, metalness: 0.2, emissive: 0x2fbf8f, emissiveIntensity: 0.9 });
+  const hair = new THREE.MeshStandardMaterial({ color: 0xf6ecd2, roughness: 0.32, metalness: 0.12, emissive: 0x3a3220, emissiveIntensity: 0.45 });
+  const gold = new THREE.MeshStandardMaterial({ color: 0xe4e8ee, roughness: 0.18, metalness: 0.95 });
+  const gem = new THREE.MeshStandardMaterial({ color: 0xd8f2ff, roughness: 0.05, metalness: 0.1, emissive: 0x9fd8ff, emissiveIntensity: 0.9 });
   [-1, 1].forEach((s) => {
     const ear = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.55, 10), skin);
     ear.scale.set(1, 1, 0.45);
@@ -65,18 +65,27 @@ function adorn(head) {
   });
   const cap = new THREE.Mesh(new THREE.SphereGeometry(0.6, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.55), hair);
   cap.scale.set(0.98, 0.95, 1.08); cap.position.set(0, 0.42, -0.08); head.add(cap);
-  for (let i = 0; i < 9; i++) {
-    const a = (i / 8 - 0.5) * 2.1;
-    const len = 1.15 + Math.cos(a) * 0.25;
+  for (let i = 0; i < 11; i++) {
+    const a = (i / 10 - 0.5) * 2.3;
+    const len = 1.45 + Math.cos(a) * 0.3;
     const strand = new THREE.Mesh(new THREE.BoxGeometry(0.16, len, 0.07), hair);
     strand.position.set(Math.sin(a) * 0.48, 0.42 - len / 2 + 0.1, -0.42 - Math.cos(a) * 0.18);
     strand.rotation.set(0.12, a * 0.25, Math.sin(a) * 0.08);
     strand.castShadow = true;
     head.add(strand);
   }
-  const circlet = new THREE.Mesh(new THREE.TorusGeometry(0.585, 0.025, 8, 40), gold);
+  // 顔の横に垂れる髪
+  [-1, 1].forEach((s) => { const lock = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.0, 0.08), hair); lock.position.set(s * 0.5, -0.05, 0.2); lock.rotation.z = s * 0.06; head.add(lock); });
+  // 銀の額飾り（葉の透かし模様と、雫形の宝石）
+  const circlet = new THREE.Mesh(new THREE.TorusGeometry(0.585, 0.02, 8, 48), gold);
   circlet.rotation.x = Math.PI / 2 - 0.12; circlet.position.set(0, 0.62, -0.02); head.add(circlet);
-  const g = new THREE.Mesh(new THREE.OctahedronGeometry(0.06), gem); g.position.set(0, 0.6, 0.57); head.add(g);
+  for (let i = -3; i <= 3; i++) {
+    if (!i) continue;
+    const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), gold);
+    const a = i * 0.16;
+    leaf.scale.set(0.5, 1.4, 0.3); leaf.position.set(Math.sin(a) * 0.58, 0.66 + (3 - Math.abs(i)) * 0.012, Math.cos(a) * 0.58); leaf.rotation.z = -a * 1.4; head.add(leaf);
+  }
+  const g = new THREE.Mesh(new THREE.OctahedronGeometry(0.06), gem); g.scale.set(0.8, 1.4, 0.8); g.position.set(0, 0.58, 0.58); head.add(g);
 }
 
 export function createElf({ scene }) {
@@ -92,6 +101,23 @@ export function createElf({ scene }) {
   scene.add(motes);
   const glow = new THREE.PointLight(0xbfffe6, 0, 5, 2);
   scene.add(glow);
+  // 手のひらのそばを舞う、小さな光の妖精
+  const fairy = new THREE.Group(); scene.add(fairy);
+  const spriteTex = (draw) => { const c = document.createElement('canvas'); c.width = c.height = 128; draw(c.getContext('2d')); return new THREE.CanvasTexture(c); };
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: spriteTex((g) => { const r = g.createRadialGradient(64, 64, 2, 64, 64, 64); r.addColorStop(0, 'rgba(255,240,180,1)'); r.addColorStop(0.35, 'rgba(255,220,140,.45)'); r.addColorStop(1, 'rgba(255,220,140,0)'); g.fillStyle = r; g.fillRect(0, 0, 128, 128); }), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+  halo.scale.set(0.5, 0.5, 1); fairy.add(halo);
+  const body = new THREE.Sprite(new THREE.SpriteMaterial({ map: spriteTex((g) => { g.fillStyle = '#fff3c8'; g.beginPath(); g.arc(64, 44, 8, 0, Math.PI * 2); g.fill(); g.beginPath(); g.ellipse(64, 70, 7, 18, 0, 0, Math.PI * 2); g.fill(); g.beginPath(); g.moveTo(58, 84); g.lineTo(50, 110); g.lineTo(60, 88); g.fill(); g.beginPath(); g.moveTo(70, 84); g.lineTo(78, 108); g.lineTo(68, 88); g.fill(); }), transparent: true, depthWrite: false }));
+  body.scale.set(0.16, 0.16, 1); fairy.add(body);
+  const wings = new THREE.Sprite(new THREE.SpriteMaterial({ map: spriteTex((g) => { g.fillStyle = 'rgba(230,250,255,.75)'; [[40, 50, -0.5], [88, 50, 0.5], [44, 78, 0.4], [84, 78, -0.4]].forEach(([x, y, r], i) => { g.beginPath(); g.ellipse(x, y, i < 2 ? 22 : 14, i < 2 ? 12 : 8, r, 0, Math.PI * 2); g.fill(); }); }), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+  wings.scale.set(0.2, 0.16, 1); fairy.add(wings);
+  const fairyLight = new THREE.PointLight(0xffe2a0, 0, 2.5, 2); fairy.add(fairyLight);
+  fairy.visible = false;
+  // 出会ったときに見られる肖像
+  const card = document.createElement('div');
+  card.id = 'elfCard';
+  card.innerHTML = `<div class='ec-in'><img src='/elf-portrait.jpg' alt='森のエルフ'><b>森のエルフ</b><span id='ecText'></span><em>タップで閉じる</em></div>`;
+  card.addEventListener('click', () => card.classList.remove('open'));
+  document.body.append(card);
 
   function prepare(root) {
     mats = [];
@@ -199,6 +225,16 @@ export function createElf({ scene }) {
       glow.position.set(r.position.x, 1.6, r.position.z);
     }
     glow.intensity = r.visible ? opacity * (hour < 6 || hour > 18 ? 0.9 : 0.35) * (0.9 + Math.sin(time * 2) * 0.1) : 0;
+    // 妖精は、エルフの右手の前をふわふわ舞う
+    fairy.visible = r.visible && opacity > 0.05;
+    if (fairy.visible) {
+      const ry = r.rotation.y, fx = Math.sin(ry), fz = Math.cos(ry), rx = Math.cos(ry), rz = -Math.sin(ry);
+      const bob = Math.sin(time * 2.1) * 0.08, sway = Math.sin(time * 1.3) * 0.12;
+      fairy.position.set(r.position.x + fx * 0.55 - rx * (0.35 + sway), 1.3 + bob, r.position.z + fz * 0.55 - rz * (0.35 + sway));
+      wings.scale.x = 0.2 * (0.55 + Math.abs(Math.sin(time * 22)) * 0.45);
+      [halo, body, wings].forEach((sp) => { sp.material.opacity = opacity; });
+      fairyLight.intensity = opacity * (hour < 6 || hour > 18 ? 0.9 : 0.4);
+    }
   }
   function hint(camera) {
     if (!actor || !actor.root.visible || opacity < 0.5) return null;
@@ -207,5 +243,13 @@ export function createElf({ scene }) {
     const t = spot.pose === 'read' ? spot.text + (rec ? '『' + String(rec.t).split('－')[0] + '』を' : '本を') + '読んでいる' : spot.text;
     return ['エルフ', '　' + t];
   }
-  return { attach, update, hint, get here() { return !!(actor && actor.root.visible); } };
+  // 見つめて、タップしたら肖像を見せる
+  function pickCard(camera) {
+    const h = hint(camera);
+    if (!h) return false;
+    document.getElementById('ecText').textContent = h[1].trim();
+    card.classList.add('open');
+    return true;
+  }
+  return { attach, update, hint, pick: pickCard, get here() { return !!(actor && actor.root.visible); } };
 }
