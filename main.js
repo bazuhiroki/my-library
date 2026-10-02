@@ -21,6 +21,7 @@ import { createArchive } from './archive.js';
 import { createArt } from './art.js';
 import { createLife } from './life.js';
 import { createElf } from './elf.js';
+import { createMeter } from './meter.js';
 import { createSpineAtlas, patchSpineMaterial } from './spines.js';
 
 let renderer;
@@ -482,6 +483,7 @@ const journal=createJournal({wishlist,toast:(m)=>counterUI.toast(m),onBag:()=>up
 wishlist.refresh();
 function warpToPoint(p){closeSearch();closeBook(true);journal.close();warp=1;setTimeout(()=>{player.x=p.x;player.z=p.z;player.yaw=p.yaw||0;player.pitch=p.pitch||0;started=true;$('intro').classList.add('gone');},260);}
 const archive=createArchive({scene,atlas:spineAtlas,world,toast:(m)=>counterUI.toast(m),warp:warpToPoint});
+const meter=createMeter({wishlist,toast:(m)=>counterUI.toast(m)});
 const mapUI=createMapUI({warp:(w)=>warpToPoint(w),player,zoneText:()=>zoneName(),onOpen:()=>{closeSearch();journal.close();archive.close();}});
 function warpToPile(){warp=1;setTimeout(()=>{player.yaw=Math.PI;player.x=PILE.x;player.z=PILE.z-1.85;player.pitch=-0.45;started=true;$('intro').classList.add('gone');},260);}
 // スキャナー
