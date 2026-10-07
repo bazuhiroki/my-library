@@ -22,12 +22,20 @@ import { createArt } from './art.js';
 import { createLife } from './life.js';
 import { createElf } from './elf.js';
 import { createMeter } from './meter.js';
+import { createFeature } from './feature.js';
+import { createLibStatus } from './libstatus.js';
+import { createCinema } from './cinema.js';
+import { createSports } from './sports.js';
+import { createPlaces } from './places.js';
+import { createMuseum } from './museum.js';
+import { createMind } from './mind.js';
+import { createStones } from './stones.js';
 import { createSpineAtlas, patchSpineMaterial } from './spines.js';
 
 let renderer;
-try{renderer=new THREE.WebGLRenderer({canvas:$('c'),antialias:true,powerPreference:'high-performance'});}catch(e){$('err').style.display='flex';throw e;}
+try{renderer=new THREE.WebGLRenderer({canvas:$('c'),antialias:true,alpha:true,powerPreference:'high-performance'});}catch(e){$('err').style.display='flex';throw e;}
 renderer.setPixelRatio(Math.min(devicePixelRatio,isTouch?1.6:2));renderer.setSize(innerWidth,innerHeight);
-renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
+renderer.outputEncoding=THREE.sRGBEncoding;renderer.setClearColor(0x000000,1);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 const scene=new THREE.Scene();scene.fog=new THREE.Fog(0xa9bccc,120,700);
 const camera=new THREE.PerspectiveCamera(isTouch?74:68,innerWidth/innerHeight,0.05,1300);camera.rotation.order='YXZ';
@@ -236,14 +244,14 @@ const clouds=[];for(let i=0;i<18;i++){const m=mesh(new THREE.PlaneGeometry(rand(
 const grassMat=new THREE.MeshStandardMaterial({color:0x5f7a45,roughness:1});
 const ground=mesh(new THREE.PlaneGeometry(1400,1400),grassMat,700+W+0.6,-0.02,0);ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;
 const court=mesh(new THREE.PlaneGeometry(36,80),new THREE.MeshStandardMaterial({map:stoneTex,roughness:.9}),W+0.6+18,0.01,0);court.rotation.x=-Math.PI/2;court.receiveShadow=true;const courtMat=court.material;
-box(new THREE.MeshStandardMaterial({color:0x9a8e7a,roughness:.9}),0.8,1.1,80,W+0.6+36,0.55,0);
+{const cw=new THREE.MeshStandardMaterial({color:0x9a8e7a,roughness:.9});box(cw,0.8,1.1,19.5,W+0.6+36,0.55,-30.25);box(cw,0.8,1.1,35,W+0.6+36,0.55,0);box(cw,0.8,1.1,18.5,W+0.6+36,0.55,30.75);}
 const torchFlames=[];
 for(let z=-36;z<=36;z+=12){if(z===-24||z===24)continue;box(M.iron,0.12,2.6,0.12,W+4,1.3,z);const f=mesh(new THREE.SphereGeometry(0.16,10,8),new THREE.MeshBasicMaterial({color:0xffb050,transparent:true,opacity:0}),W+4,2.72,z);torchFlames.push(f);}
 // forest
 const TREE_N=420;const treeGeo=new THREE.ConeGeometry(2.4,9,7);treeGeo.translate(0,4.5,0);
 const treeMat=new THREE.MeshStandardMaterial({color:0x2f4a2c,roughness:1,flatShading:true});
 const forest=new THREE.InstancedMesh(treeGeo,treeMat,TREE_N);
-for(let i=0;i<TREE_N;i++){let x,z;do{x=rand(48,320);z=rand(-360,360);}while(Math.hypot(x-120,z+60)<45);const s=rand(.7,1.5);dummy.position.set(x,0,z);dummy.scale.set(s,s*rand(.9,1.3),s);dummy.rotation.set(0,Math.random()*6,0);dummy.updateMatrix();forest.setMatrixAt(i,dummy.matrix);}
+for(let i=0;i<TREE_N;i++){let x,z;do{x=rand(48,320);z=rand(-360,360);}while(Math.hypot(x-120,z+60)<45||(x<92&&z>-46&&z<58));const s=rand(.7,1.5);dummy.position.set(x,0,z);dummy.scale.set(s,s*rand(.9,1.3),s);dummy.rotation.set(0,Math.random()*6,0);dummy.updateMatrix();forest.setMatrixAt(i,dummy.matrix);}
 scene.add(forest);
 // mountains
 const mtMat=new THREE.MeshStandardMaterial({color:0x5b6475,roughness:1,flatShading:true});const snowCapMat=new THREE.MeshStandardMaterial({color:0xeef2f6,roughness:.9,flatShading:true});
@@ -439,10 +447,10 @@ cv.addEventListener('pointermove',e=>{
   if(joy&&e.pointerId===joy.id){let dx=e.clientX-joy.cx,dy=e.clientY-joy.cy;const d=Math.hypot(dx,dy),mx=46;if(d>mx){dx*=mx/d;dy*=mx/d;}knob.style.transform=`translate(${dx}px,${dy}px)`;mv.x=dx/mx;mv.y=dy/mx;}
   else if(look&&e.pointerId===look.id){const s=isTouch?.0055:.0038;player.yaw-=(e.clientX-look.x)*s;player.pitch=clamp(player.pitch-(e.clientY-look.y)*s,-1.3,1.3);look.x=e.clientX;look.y=e.clientY;}});
 function endPtr(e){if(joy&&e.pointerId===joy.id){joy=null;mv.x=mv.y=0;joyEl.classList.remove('on');}
-  if(look&&e.pointerId===look.id){const moved=Math.hypot(e.clientX-look.sx,e.clientY-look.sy);if(e.type==='pointerup'&&moved<9&&performance.now()-look.t<400){const h=hitBook(e.clientX,e.clientY);if(h)openBook(h.wi,h.id);else{ndc.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);const w=wishPile.pick(ndc,camera);if(w){closeBook(true);journal.open(w==='table'?null:w);}else if(archive.pick(ndc,camera)){closeBook(true);}else if(world.pickBoard(ndc,camera)){mapUI.open();}else if(elf.pick(camera)){closeBook(true);}else if(life.recAt(camera,player)){const lr=life.recAt(camera,player);closeBook(true);journal.open(lr);}else if(pulled)closeBook(false);}}look=null;}}
+  if(look&&e.pointerId===look.id){const moved=Math.hypot(e.clientX-look.sx,e.clientY-look.sy);if(e.type==='pointerup'&&moved<9&&performance.now()-look.t<400){const h=hitBook(e.clientX,e.clientY);if(h)openBook(h.wi,h.id);else{ndc.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);const w=wishPile.pick(ndc,camera);if(w){closeBook(true);journal.open(w==='table'?null:w);}else if(archive.pick(ndc,camera)){closeBook(true);}else if(world.pickBoard(ndc,camera)){mapUI.open();}else if(stones.pick(ndc,camera)){closeBook(true);}else if(mind.pick(ndc,camera)){closeBook(true);}else if(museum.pick(ndc,camera)){closeBook(true);}else if(sports.pick(ndc,camera)){closeBook(true);}else if(cinema.pick(ndc,camera)){closeBook(true);}else if(feature.pick(ndc,camera)){closeBook(true);}else if(elf.pick(camera)){closeBook(true);}else if(life.recAt(camera,player)){const lr=life.recAt(camera,player);closeBook(true);journal.open(lr);}else if(pulled)closeBook(false);}}look=null;}}
 cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
 addEventListener('keydown',e=>{const ae=document.activeElement;if(ae&&/INPUT|TEXTAREA/.test(ae.tagName))return;keys[e.code]=true;});addEventListener('keyup',e=>{keys[e.code]=false;});addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
-function blocked(x,z){if(!world.walkable(x,z))return true;const r=.32;for(const c of colliders)if(x>c.x0-r&&x<c.x1+r&&z>c.z0-r&&z<c.z1+r)return true;return false;}
+function blocked(x,z){if(player.seated)return true;if(!world.walkable(x,z))return true;const r=.32;for(const c of colliders)if(x>c.x0-r&&x<c.x1+r&&z>c.z0-r&&z<c.z1+r)return true;return false;}
 function zoneName(){const x=player.x,z=player.z;{const zw=world.zone(x,z);if(zw)return zw;}if(z>17.5)return '大扉の前';if(z<-18.5)return '薔薇窓の下';if(Math.abs(x)<1.6&&z>12.8)return '大地球儀のそば';if(Math.abs(x)<2.2)return '中央の閲覧机';
   const w=wallMeshes[x<0?0:1];const b=w.wl.bays.find(b=>z>=b[0]&&z<=b[1]);return b?`${w.wl.name}・第${b.num}書架`:`${w.wl.name}の窓辺`;}
 let started=false;
@@ -454,7 +462,7 @@ function updatePlayer(dt){
   const dx=(-sy*f+cy*s)*sp*dt,dz=(-cy*f-sy*s)*sp*dt;
   if(!blocked(player.x+dx,player.z))player.x+=dx;if(!blocked(player.x,player.z+dz))player.z+=dz;
   const moving=Math.hypot(dx,dz)>.0005;player.bob+=moving?dt*sp*4:0;
-  camera.position.set(player.x,1.62+(moving?Math.sin(player.bob)*.028:0),player.z);camera.rotation.set(player.pitch,player.yaw,0);
+  camera.position.set(player.x,(player.eye||1.62)+(moving?Math.sin(player.bob)*.028:0),player.z);camera.rotation.set(player.pitch,player.yaw,0);
   if(moving&&pulled){const b=pulled.w.inst[pulled.id];if(Math.hypot(player.x-b.x,player.z-b.z)>4)closeBook(false);}}
 
 // ================= loop =================
@@ -463,7 +471,7 @@ function loop(){
   const dt=Math.min(clock.getDelta(),.05),time=clock.elapsedTime;
   if(S.auto)S.hour=(S.hour+dt/20)%24;
   if(S.autoWx){S.nextWx-=dt;if(S.nextWx<0){const r=Math.random();setWx(r<.45?'clear':r<.7?'cloudy':r<.9?'rain':'snow');S.nextWx=rand(3,6)*20;}}
-  updateEnv(dt,time);updateFigures(dt,time);world.update(dt,time,player,S.hour);life.update(dt,time,started?player:null,S.hour);elf.update(dt,time,camera,S.hour);counterDecor.update(time);if(started)counterUI.update(player);
+  updateEnv(dt,time);updateFigures(dt,time);world.update(dt,time,player,S.hour);life.update(dt,time,started?player:null,S.hour);elf.update(dt,time,camera,S.hour);feature.update(dt,time);cinema.update(dt,time,camera,started?player:null);sports.update(dt,time,started?player:null);stones.update(dt,time);mind.update(dt,time,started?player:null);museum.update(dt,time,started?player:null);places.update(dt,started?player:null);counterDecor.update(time);if(started)counterUI.update(player);
   if(started)updatePlayer(dt);else{camera.position.set(0,1.62,19.5);camera.rotation.set(.12,Math.sin(time*.15)*.3,0);}
   if(pulled){pulled.t=clamp(pulled.t+dt*3.2*pulled.dir,0,1);const e=1-Math.pow(1-pulled.t,3);setPull(pulled.w,pulled.id,e*.17);if(pulled.dir<0&&pulled.t<=0){setPull(pulled.w,pulled.id,0);pulled=null;}}
   if(warp>0){warp=Math.max(0,warp-dt*1.4);$('warp').style.opacity=(Math.sin(warp*Math.PI)).toFixed(3);}
@@ -471,9 +479,9 @@ function loop(){
   $('clockW').textContent=WX[S.wx].name;
   zoneT-=dt;if(zoneT<0&&started){zoneT=.4;$('zone').textContent=zoneName();}
   hintT-=dt;if(hintT<0&&started&&!pulled){hintT=.22;const h=hitBook(innerWidth/2,innerHeight/2);const el=$('hint');
-    if(!h){ndc.set(0,0);const wp=wishPile.pick(ndc,camera);if(wp){el.innerHTML='';const b=document.createElement('b');b.textContent=wp==='table'?'読みたい本の台':'『'+wp.title+'』';el.append(b,document.createTextNode(wp==='table'?`　${wishPile.count()}冊`:'　読みたい本'));el.classList.add('on');}else{const ah=archive.hint(camera);if(ah){el.innerHTML='';const b=document.createElement('b');b.textContent=ah[0];el.append(b,document.createTextNode(ah[1]));el.classList.add('on');}else if(world.pickBoard(ndc,camera)){el.innerHTML='';const b=document.createElement('b');b.textContent='館内案内図';el.append(b,document.createTextNode('　タップで開く'));el.classList.add('on');}else{const lh=elf.hint(camera)||life.hint(camera,player)||art.hint(camera);if(lh){el.innerHTML='';const b=document.createElement('b');b.textContent=lh[0];el.append(b,document.createTextNode(lh[1]));el.classList.add('on');}else el.classList.remove('on');}}}
+    if(!h){ndc.set(0,0);const wp=wishPile.pick(ndc,camera);if(wp){el.innerHTML='';const b=document.createElement('b');b.textContent=wp==='table'?'読みたい本の台':'『'+wp.title+'』';el.append(b,document.createTextNode(wp==='table'?`　${wishPile.count()}冊`:'　読みたい本'));el.classList.add('on');}else{const ah=archive.hint(camera);if(ah){el.innerHTML='';const b=document.createElement('b');b.textContent=ah[0];el.append(b,document.createTextNode(ah[1]));el.classList.add('on');}else if(world.pickBoard(ndc,camera)){el.innerHTML='';const b=document.createElement('b');b.textContent='館内案内図';el.append(b,document.createTextNode('　タップで開く'));el.classList.add('on');}else{const lh=elf.hint(camera)||stones.hint(camera)||mind.hint(camera)||museum.hint(camera)||cinema.hint(camera)||sports.hint(camera)||feature.hint(camera)||life.hint(camera,player)||art.hint(camera);if(lh){el.innerHTML='';const b=document.createElement('b');b.textContent=lh[0];el.append(b,document.createTextNode(lh[1]));el.classList.add('on');}else el.classList.remove('on');}}}
     else if(h){const r=RECS[wallMeshes[h.wi].rec[h.id]];el.innerHTML='';const b=document.createElement('b');b.textContent='『'+splitTitle(r.t)[0]+'』';el.append(b,document.createTextNode(isRead(r)?'　読んだ本':''));el.classList.add('on');}}
-  renderer.render(scene,camera);requestAnimationFrame(loop);}
+  cinema.render(camera);renderer.render(scene,camera);requestAnimationFrame(loop);}
 $('enter').addEventListener('click',()=>{started=true;$('intro').classList.add('gone');cv.focus();});
 const counterUI=createCounterUI({$,onChange:()=>{updateBagChip();if(pulled)updateBagUI(RECS[pulled.w.rec[pulled.id]]);}});
 updateBagChip();
@@ -481,9 +489,17 @@ updateBagChip();
 const wishlist=createWishlist({onChange:(items,mode)=>{registerWish(items);wishPile.rebuild(items);journal.refresh();}});
 const journal=createJournal({wishlist,toast:(m)=>counterUI.toast(m),onBag:()=>updateBagChip(),hasSpot:(r)=>!!recLoc[r.id],warpToShelf:(r)=>warpTo(r.id),currentRec:()=>pulled?RECS[pulled.w.rec[pulled.id]]:null});
 wishlist.refresh();
-function warpToPoint(p){closeSearch();closeBook(true);journal.close();warp=1;setTimeout(()=>{player.x=p.x;player.z=p.z;player.yaw=p.yaw||0;player.pitch=p.pitch||0;started=true;$('intro').classList.add('gone');},260);}
+function warpToPoint(p){player.seated=false;player.eye=0;closeSearch();closeBook(true);journal.close();warp=1;setTimeout(()=>{player.x=p.x;player.z=p.z;player.yaw=p.yaw||0;player.pitch=p.pitch||0;started=true;$('intro').classList.add('gone');},260);}
 const archive=createArchive({scene,atlas:spineAtlas,world,toast:(m)=>counterUI.toast(m),warp:warpToPoint});
 const meter=createMeter({wishlist,toast:(m)=>counterUI.toast(m)});
+const feature=createFeature({scene,meter,M,colliders});
+const libStatus=createLibStatus({toast:(m)=>counterUI.toast(m)});
+const cinema=createCinema({scene,M,colliders,world,warp:warpToPoint,toast:(m)=>counterUI.toast(m),renderer,player});
+const sports=createSports({scene,M,colliders,world,warp:warpToPoint,toast:(m)=>counterUI.toast(m)});
+const museum=createMuseum({scene,M,colliders,world,warp:warpToPoint,toast:(m)=>counterUI.toast(m),cinema});
+const mind=createMind({scene,M,colliders,toast:(m)=>counterUI.toast(m),elf});
+const stones=createStones({scene,colliders,world,warp:warpToPoint,toast:(m)=>counterUI.toast(m),cinema});
+const places=createPlaces({cinema,sports,museum,mind,stones});
 const mapUI=createMapUI({warp:(w)=>warpToPoint(w),player,zoneText:()=>zoneName(),onOpen:()=>{closeSearch();journal.close();archive.close();}});
 function warpToPile(){warp=1;setTimeout(()=>{player.yaw=Math.PI;player.x=PILE.x;player.z=PILE.z-1.85;player.pitch=-0.45;started=true;$('intro').classList.add('gone');},260);}
 // スキャナー
@@ -523,7 +539,7 @@ $('sManualGo').addEventListener('click',()=>{const v=$('sManual').value.replace(
 $('sManual').addEventListener('keydown',e=>{if(e.key==='Enter')$('sManualGo').click();});
 addEventListener('keydown',e=>{if(e.key==='Escape'){closeScan();journal.close();}});
 loadCast(p=>{$('loadNote').textContent=`館の人々が集まっています… ${Math.round(p*100)}%`;})
-  .then(cast=>{people=createPeople({scene,cast,seats,W,L,counters:COUNTERS});life.attach(cast,people);elf.attach(cast);$('loadNote').textContent='';})
+  .then(cast=>{people=createPeople({scene,cast,seats,W,L,counters:COUNTERS});life.attach(cast,people);elf.attach(cast);cinema.attach(cast);sports.attach(cast);museum.attach(cast);$('loadNote').textContent='';})
   .catch(e=>{console.error(e);$('loadNote').textContent='登場人物を読み込めませんでした';});
 // Notion と公式発表から最新の蔵書を取り込む（取れなければ同梱のデータのまま）
 fetch('/api/books').then(r=>r.ok?r.json():null).then(d=>{if(!d||!Array.isArray(d.rows))return;

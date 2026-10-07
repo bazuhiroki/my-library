@@ -4,7 +4,7 @@ import PRIZE_BOOKS from './prize-books.json';
 
 // 借りるボタンの行き先（葛飾区立図書館）。jsessionid 入りの URL は時間が経つと切れることがあるので、
 // 切れていたらここを書き換える。
-export const BORROW_URL = 'https://www.lib.city.katsushika.lg.jp/contents;jsessionid=62E42934AFD896BEA336F5CF585876C6?0&pid=323';
+export const BORROW_URL = 'https://www.lib.city.katsushika.lg.jp/menucontents?pid=2';
 export const amazonUrl = (title, author) => 'https://www.amazon.co.jp/s?k=' + encodeURIComponent((title + ' ' + (author || '')).trim());
 
 // 書架に並べる順（東の壁、入口側から）
@@ -81,13 +81,21 @@ export const readCount = () => RECS.filter(isRead).length;
 // かばん（カウンターへ持っていく本）
 const BAG_KEY = 'my-library:bag:v1';
 const bag = load(BAG_KEY, { borrow: [], buy: [] });
-export function bagList(kind) { return bag[kind].map((k) => RECS.find((r) => keyOf(r) === k)).filter(Boolean); }
-export function inBag(kind, r) { return bag[kind].includes(keyOf(r)); }
-export function toggleBag(kind, r) {
-  const k = keyOf(r); const i = bag[kind].indexOf(k);
-  if (i >= 0) bag[kind].splice(i, 1); else bag[kind].push(k);
-  save(BAG_KEY, bag); return i < 0;
+// 図書館の外の本（読書メーターなど）もかばんに入れられるようにする。key は「bm:ID」のような形
+const EXT_KEY = 'my-library:bag-ext:v1';
+const ext = load(EXT_KEY, {});
+const bagKey = (r) => (r && r.ext ? r.key : keyOf(r));
+export function bagList(kind) {
+  return bag[kind].map((k) => (String(k).includes(':') && ext[k] ? Object.assign({}, ext[k], { key: k, ext: true }) : RECS.find((r) => keyOf(r) === k))).filter(Boolean);
 }
+export function inBag(kind, r) { return bag[kind].includes(bagKey(r)); }
+export function toggleBag(kind, r) {
+  const k = bagKey(r); const i = bag[kind].indexOf(k);
+  if (i >= 0) bag[kind].splice(i, 1);
+  else { bag[kind].push(k); if (r.ext) ext[k] = Object.assign({}, ext[k] || {}, { t: r.t, a: r.a || '', isbn: r.isbn || '', cover: r.cover || '', url: r.url || '', bmId: r.bmId || '', src: r.src || '' }); }
+  save(BAG_KEY, bag); save(EXT_KEY, ext); return i < 0;
+}
+export function updateBagItem(key, fields) { if (ext[key]) { Object.assign(ext[key], fields); save(EXT_KEY, ext); } }
 export function clearBag(kind) { bag[kind] = []; save(BAG_KEY, bag); }
 
 // 検索（タイトル・著者・賞の名前・回）

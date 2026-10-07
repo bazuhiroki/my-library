@@ -236,6 +236,16 @@ export function createElf({ scene }) {
       fairyLight.intensity = opacity * (hour < 6 || hour > 18 ? 0.9 : 0.4);
     }
   }
+  // 心の部屋：呼ばれたら、その場所に現れて待っている（離れると、しばらくして消える）
+  let forced = null;
+  function summon(s) {
+    if (!actor) return false;
+    const r = actor.root;
+    forced = s; spot = s; rec = null;
+    if (!(r.visible && Math.hypot(r.position.x - s.x, r.position.z - s.z) < 0.5 && state !== 'out')) { r.position.set(s.x, 0, s.z); r.rotation.y = s.ry; r.visible = true; opacity = 0; state = 'in'; if (actor.book) actor.book.visible = false; actor.play('Idle'); }
+    timer = 1e9; return true;
+  }
+  function release() { if (!forced) return; forced = null; if (state === 'here' || state === 'in') timer = 1.5; }
   function hint(camera) {
     if (!actor || !actor.root.visible || opacity < 0.5) return null;
     const v = seen(camera, actor.root.position.x, actor.root.position.z);
@@ -251,5 +261,5 @@ export function createElf({ scene }) {
     card.classList.add('open');
     return true;
   }
-  return { attach, update, hint, pick: pickCard, get here() { return !!(actor && actor.root.visible); } };
+  return { attach, update, hint, pick: pickCard, summon, release, get here() { return !!(actor && actor.root.visible); } };
 }

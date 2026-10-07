@@ -443,3 +443,64 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .bmd-acts a,.bmd-acts button{display:inline-flex;align-items:center;height:36px;padding:0 12px;border-radius:10px;border:1px solid rgba(210,170,85,.45);background:rgba(210,170,85,.08);color:#EBD08F;font-family:var(--ui);font-size:12px;text-decoration:none;cursor:pointer}
 .bmd-acts button:disabled{opacity:.6}
 @media (max-width:420px){.bmd-card{flex-direction:column;align-items:center}.bmd-card img{width:140px;height:210px}}
+
+/* ===== 読書メーター v11：ジャンル・検索 ===== */
+.bm-bar{position:relative}
+#bmClear{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:34px;height:34px;border:none;background:none;color:var(--text-dim);font-size:20px;cursor:pointer;padding:0}
+.bm-bar input{padding-right:40px}
+.bm-genres{display:flex;gap:6px;overflow-x:auto;padding:10px 0 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.bm-genres::-webkit-scrollbar{display:none}
+.bm-genres button{flex:0 0 auto;height:32px;padding:0 11px;border-radius:16px;border:1px solid var(--line);background:transparent;color:var(--text-dim);font-family:var(--ui);font-size:12px;cursor:pointer;white-space:nowrap}
+.bm-genres button[aria-pressed=true]{background:rgba(120,200,150,.22);border-color:rgba(120,200,150,.7);color:#d4f2de;font-weight:700}
+.bm-ctl{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-top:8px;font-size:11.5px;color:var(--text-dim)}
+.bm-ctl label{display:flex;align-items:center;gap:6px}
+.bm-ctl select{height:32px;border-radius:9px;border:1px solid var(--line);background:rgba(20,15,10,.8);color:var(--text);font-family:var(--ui);font-size:12px;padding:0 6px}
+.bm-chk input{width:18px;height:18px;accent-color:#c9a04e}
+.bm-gh{grid-column:1/-1;margin:10px 0 0;font-family:var(--display);font-size:13px;color:#EBD08F;border-bottom:1px solid var(--line);padding-bottom:4px}
+.bm-gn{font-size:9.5px;color:var(--text-dim);margin-top:-2px}
+.bm-hit{margin:10px 0 0;font-size:11px;color:var(--text-dim);text-align:center}
+.bm-tools{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.bm-tools button{height:36px;padding:0 12px;border-radius:10px;border:1px solid rgba(210,170,85,.45);background:rgba(210,170,85,.08);color:#EBD08F;font-family:var(--ui);font-size:12px;cursor:pointer}
+.bmd-genre{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.bmd-lbl{font-size:11px;color:var(--text-dim)}
+.bmd-genre select{height:34px;border-radius:9px;border:1px solid var(--line);background:rgba(20,15,10,.8);color:var(--text);font-family:var(--ui);font-size:13px;padding:0 6px;max-width:100%}
+.bmd-src{font-style:normal;font-size:10.5px;color:var(--text-dim)}
+.bmd-tags{display:flex;flex-wrap:wrap;gap:6px}
+.bmd-tags button{height:28px;padding:0 10px;border-radius:14px;border:1px solid var(--line);background:transparent;color:#bfe8cc;font-family:var(--ui);font-size:11.5px;cursor:pointer}
+.bmd-link{color:#EBD08F;text-decoration:underline;text-underline-offset:3px}
+.bm-gn.tmp{opacity:.6}
+
+/* ===== v13：かばんとカウンター ===== */
+#cList .cst{font-style:normal;font-size:10.5px;margin-top:3px;align-self:flex-start;padding:1px 7px;border-radius:8px;border:1px solid var(--line);color:var(--text-dim)}
+#cList .cst:empty{display:none}
+#cList .cst[data-s='貸出可']{color:#9fe0b0;border-color:rgba(120,200,150,.6)}
+#cList .cst[data-s='貸出中'],#cList .cst[data-s='予約中']{color:#f0c27a;border-color:rgba(240,194,122,.6)}
+#cList .cst[data-s='蔵書なし']{color:#c9a0a0}
+#cList .cacts2{display:flex;flex-direction:column;gap:5px;align-items:stretch}
+#cList .cgo.sub{font-size:11px;opacity:.85}
+#cList .cdone{height:30px;padding:0 10px;border-radius:9px;border:1px solid rgba(120,200,150,.5);background:rgba(120,200,150,.1);color:#bfe8cc;font-family:var(--ui);font-size:11.5px;cursor:pointer;white-space:nowrap}
+.bmd-bag{display:flex;flex-wrap:wrap;gap:6px}
+.bmd-bag button{height:36px;padding:0 12px;border-radius:10px;border:1px solid rgba(120,200,150,.5);background:rgba(120,200,150,.1);color:#bfe8cc;font-family:var(--ui);font-size:12px;cursor:pointer}
+.bmd-bag button[aria-pressed=true]{background:rgba(120,200,150,.3);color:#e6fff0;font-weight:700}
+.bm-mark.bag{left:auto;right:4px;background:rgba(60,40,10,.9);color:#EBD08F}
+
+/* ===== 利用状況の窓口 ===== */
+#lsChip{pointer-events:auto;cursor:pointer;border:1px solid rgba(120,170,220,.45);color:#cfe2f3;font-family:var(--ui);text-align:left}
+#lsChip[data-alert='1']{border-color:#f0c27a;color:#f6dca8}
+#ls{position:fixed;inset:auto 0 0 0;z-index:12;padding:0 12px calc(env(safe-area-inset-bottom,0px) + 12px);transform:translateY(110%);transition:transform .38s cubic-bezier(.2,.8,.2,1)}
+#ls.open{transform:none}
+#ls .card{max-height:80vh;overflow-y:auto;display:block}
+#ls h2{font-family:var(--display);font-size:19px;font-weight:800;margin:0}
+#lsClose{height:40px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text);font-family:var(--ui);cursor:pointer}
+.ls-note{font-size:11.5px;color:var(--text-dim);margin:8px 0}
+.ls-h{font-family:var(--display);font-size:14px;color:#EBD08F;margin:14px 0 6px;border-bottom:1px solid var(--line);padding-bottom:4px}
+.ls-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.ls-list li{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid var(--line)}
+.ls-list li b{font-family:var(--display);font-size:14px}
+.ls-list li span{font-size:11.5px;color:var(--text-dim)}
+.ls-list li[data-tone='warn']{border-color:rgba(240,150,110,.7)}
+.ls-list li[data-tone='warn'] span{color:#f2b49a}
+.ls-list li[data-tone='ready']{border-color:rgba(120,200,150,.7)}
+.ls-list li[data-tone='ready'] span{color:#9fe0b0}
+.ls-tools{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.ls-tools button,.ls-tools a{height:38px;display:inline-flex;align-items:center;padding:0 14px;border-radius:10px;border:1px solid rgba(210,170,85,.45);background:rgba(210,170,85,.08);color:#EBD08F;font-family:var(--ui);font-size:12.5px;text-decoration:none;cursor:pointer}

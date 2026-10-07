@@ -39,6 +39,11 @@ export const WARPS = [
   { id: 'camp', name: '焚き火', area: 'out', x: -33, z: 18.6, yaw: 0, pitch: -0.08 },
   { id: 'cafe', name: '木陰のカフェ', area: 'out', x: -27.4, z: 31.2, yaw: Math.PI * 0.15, pitch: -0.05 },
   { id: 'beer', name: 'ビアガーデン', area: 'out', x: 21, z: 41.8, yaw: Math.PI, pitch: -0.05 },
+  { id: 'cinema', name: '映画館', area: 'out', x: 52.2, z: -19, yaw: -Math.PI / 2, pitch: 0.05 },
+  { id: 'field', name: '運動場', area: 'out', x: 51.5, z: 19.5, yaw: -Math.PI / 2, pitch: 0.02 },
+  { id: 'museum', name: '映画博物館', area: 'out', x: 72, z: -36, yaw: -Math.PI / 2, pitch: 0.06 },
+  { id: 'mind', name: '心の部屋（湖の庵）', area: 'out', x: -57.6, z: 10, yaw: Math.PI / 2, pitch: 0.04 },
+  { id: 'stones', name: 'SixTONES館', area: 'out', x: 55, z: 34.5, yaw: Math.PI, pitch: 0.08 },
 ];
 
 export function createWorld({ scene, box, mesh, M, textTex, colliders, tex, mapTex, W, L, weather }) {
@@ -412,6 +417,11 @@ export function createWorld({ scene, box, mesh, M, textTex, colliders, tex, mapT
     return true;
   }
   function zone(x, z) {
+    if (Math.hypot(x + 63, z - 10) < 8.5) return '心の部屋（湖のほとりの庵）';
+    if (x > 49.5 && x < 72.5 && z > 37.5 && z < 54.5) return 'SixTONES館';
+    if (x > 53 && x < 57 && z > 32.5 && z <= 37.5) return 'SixTONES館への小道';
+    if (x > 69.8) return '映画博物館';
+    if (x > 45 && (z < -34.3 || (x < 48 && z < -20.6))) return '博物館への小道';
     if (z < -22.6) {
       if (x < -ARCH_X) {
         if (z < IN.z0 + 1.6) { const b = x < -22 ? '第一' : x < -14.4 ? '第二' : '第三'; return '論文の間・' + b + '書架'; }
@@ -420,6 +430,9 @@ export function createWorld({ scene, box, mesh, M, textTex, colliders, tex, mapT
       if (x > ARCH_X) return z < IN.z0 + 1.6 ? '雑誌の回廊・表紙の棚' : '雑誌の回廊';
       return '翼廊の玄関ホール';
     }
+    if (x > 69.8) return '映画博物館';
+    if (x > 45 && (z < -34.3 || (x < 48 && z < -20.6))) return '博物館への小道';
+    if (x > 42.4) { if (z > 0) return x > 50 ? '運動場' : '運動場への小道'; return x > 50.2 ? '映画館' : '映画館への小道'; }
     if (x < -24) {
       if (Math.hypot(x + 33, z - 14) < 5) return '焚き火のまわり';
       if (x < -34 && Math.abs(z - 31) < 0.8) return '湖の桟橋';
@@ -437,7 +450,7 @@ export function createWorld({ scene, box, mesh, M, textTex, colliders, tex, mapT
     if (x > 6.6) return '中庭';
     return null;
   }
-  const outside = (p) => p.z > L + 0.4 || p.x > 6.6 || p.x < -24;
+  const outside = (p) => !(p.x > 50.2 && p.x < 67.8 && p.z > -29.8 && p.z < -8.2) && !(p.x > 70.2 && p.x < 89.8 && p.z > -44.8 && p.z < -23.2) && (p.z > L + 0.4 || p.x > 6.6 || p.x < -24);
   const ray = new THREE.Raycaster(); ray.far = 7;
   function pickBoard(ndc, camera) {
     ray.setFromCamera(ndc, camera);

@@ -1,3 +1,42 @@
 {
-  "crons": [{ "path": "/api/cron-prizes", "schedule": "0 22 * * *" }]
+  "rewrites": [
+    {
+      "source": "/api/calil",
+      "destination": "/api/meter-notion?mode=calil"
+    },
+    {
+      "source": "/api/library",
+      "destination": "/api/meter-notion?mode=library"
+    },
+    {
+      "source": "/api/videos",
+      "destination": "/api/meter-notion?mode=video"
+    },
+    {
+      "source": "/api/sports",
+      "destination": "/api/meter-notion?mode=sports"
+    },
+    {
+      "source": "/api/movies",
+      "destination": "/api/meter-notion?mode=movie"
+    },
+    {
+      "source": "/api/mind",
+      "destination": "/api/meter-notion?mode=mind"
+    },
+    {
+      "source": "/api/stones",
+      "destination": "/api/meter-notion?mode=stones"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron-prizes",
+      "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/cron-meter",
+      "schedule": "30 21 * * *"
+    }
+  ]
 }

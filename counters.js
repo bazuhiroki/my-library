@@ -1,6 +1,38 @@
 // 貸出カウンター（司書）と購入カウンター（商人）
 import * as THREE from 'three';
-import { BORROW_URL, amazonUrl, bagList, toggleBag, clearBag, prizeName } from './books.js';
+import { BORROW_URL, amazonUrl, bagList, toggleBag, clearBag, prizeName, updateBagItem } from './books.js';
+
+// ISBN-13 → ISBN-10（Amazon の商品ページは ISBN-10 で開ける）
+function isbn10(n) {
+  const s = String(n || '').replace(/[^0-9X]/gi, '');
+  if (s.length === 10) return s.toUpperCase();
+  if (s.length !== 13 || !s.startsWith('978')) return '';
+  const core = s.slice(3, 12);
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += Number(core[i]) * (10 - i);
+  const c = (11 - (sum % 11)) % 11;
+  return core + (c === 10 ? 'X' : String(c));
+}
+const plain = (t) => String(t || '').split(/[－(（]/)[0].trim();
+const PASS = 'my-library:passcode';
+// 図書館の本・受賞作には ISBN が無いので、題名と著者から調べた ISBN を覚えておく（見つからなかったときは空で覚える）
+const ISBN_KEY = 'my-library:isbn-cache:v2';
+const isbnCache = (() => { try { return JSON.parse(localStorage.getItem(ISBN_KEY) || '{}') || {}; } catch (e) { return {}; } })();
+const ikey = (r) => plain(r.t) + '|' + String(r.a || '').split(/[,・]/)[0];
+const isbnOf = (r) => r.isbn || (typeof isbnCache[ikey(r)] === 'string' ? isbnCache[ikey(r)] : '');
+// 見つからなかった本は、1日たったらもう一度探す
+const tried = (r) => { const v = isbnCache[ikey(r)]; return typeof v === 'string' ? true : !!(v && Date.now() - v.at < 86400000); };
+const PAGES = 'my-library:bookmeter:pages:v1';
+// 読書メーターの本なら、Notion「読書メーター」の「入手」を更新する
+export async function setAcq(r, acq) {
+  if (!r || !r.bmId) return;
+  let pageId = '';
+  try { pageId = (JSON.parse(localStorage.getItem(PAGES) || '{}') || {})[String(r.bmId)] || ''; } catch (e) { pageId = ''; }
+  if (!pageId) return;
+  try {
+    await fetch('/api/meter-notion', { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-app-key': localStorage.getItem(PASS) || '' }, body: JSON.stringify({ updates: [{ pageId, fields: { acq, isbn: r.isbn || undefined } }] }) });
+  } catch (e) { /* 次の機会に */ }
+}
 
 // side: -1 = 西側（入って右手）, +1 = 東側
 export const COUNTERS = [
@@ -74,6 +106,40 @@ export function createCounterUI({ $, onChange }) {
   const copy = async (text) => { try { await navigator.clipboard.writeText(text); return true; } catch (_) { return false; } };
   const toast = (msg) => { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('on'), 2200); };
 
+  const avail = {};       // ISBN → { status, reserveurl }
+  let calilOff = false;
+  // かばんの本の ISBN を、足りない分だけ調べて覚えておく
+  async function fillIsbn(list) {
+    const need = list.filter((r) => !isbnOf(r) && !tried(r)).slice(0, 6);
+    if (!need.length) return false;
+    await Promise.all(need.map(async (r) => {
+      let n = '';
+      const q = 'title=' + encodeURIComponent(plain(r.t)) + '&author=' + encodeURIComponent(String(r.a || '').split(/[,・]/)[0]);
+      // まず国立国会図書館サーチ、だめなら Google Books で探す
+      try { const j = await (await fetch('/api/calil?find=1&' + q)).json(); n = (j && j.isbn) || ''; } catch (e) { n = ''; }
+      if (!n) { try { const j = await (await fetch('/api/bookinfo?' + q)).json(); n = (j && j.isbn) || ''; } catch (e) { n = ''; } }
+      if (r.ext && n) updateBagItem(r.key, { isbn: n });
+      isbnCache[ikey(r)] = n || { at: Date.now() };
+    }));
+    try { localStorage.setItem(ISBN_KEY, JSON.stringify(isbnCache)); } catch (e) { /* 保存できなくても続ける */ }
+    if (open) render();
+    return true;
+  }
+  // カーリルで葛飾区立図書館の貸出状況を調べる
+  let checking = false;
+  async function checkAvail(list) {
+    if (calilOff || checking) return;
+    if (await fillIsbn(list)) return;
+    const isbns = [...new Set(list.map(isbnOf).filter((n) => n && !avail[n]))];
+    if (!isbns.length) return;
+    checking = true;
+    try {
+      const j = await (await fetch('/api/calil?isbn=' + isbns.join(','))).json();
+      if (!j.available) { calilOff = true; return; }
+      Object.assign(avail, j.books || {});
+    } catch (e) { calilOff = true; } finally { checking = false; }
+    if (open) render();
+  }
   function render() {
     if (!open) return;
     const c = COUNTERS.find((x) => x.kind === open);
@@ -82,20 +148,44 @@ export function createCounterUI({ $, onChange }) {
     $('cSpeech').textContent = open === 'borrow'
       ? (list.length ? `ようこそ。お持ちの${list.length}冊、図書館での借り方をご案内します。書名をお写ししてから予約の窓口へお連れしますね。` : 'ようこそ。借りたい本があれば、棚から取り出して「借りる本に入れる」を選んでからお越しください。')
       : (list.length ? `いらっしゃい。${list.length}冊だね。どれも市場で手に入るよ、一冊ずつ案内しよう。` : 'いらっしゃい。手元に置きたい本があれば「買う本に入れる」を選んで持ってきておくれ。');
+    if (open === 'borrow' && list.length) $('cSpeech').textContent += calilOff ? '（カーリルのキーを登録すると、ここで貸出できるかも分かります）' : '　貸出の状況もお調べしますね。';
     const ul = $('cList'); ul.innerHTML = '';
     list.forEach((r) => {
       const li = document.createElement('li');
       const info = document.createElement('div'); info.className = 'ci';
-      const t = document.createElement('b'); t.textContent = r.t.split(/[－(（]/)[0];
-      const m = document.createElement('span'); m.textContent = [r.a, r.primary ? `${prizeName(r.primary.p)} ${r.primary.label}` : ''].filter(Boolean).join('　');
+      const t = document.createElement('b'); t.textContent = plain(r.t);
+      const m = document.createElement('span'); m.textContent = [r.a, r.primary ? `${prizeName(r.primary.p)} ${r.primary.label}` : '', r.ext ? '読書メーター' : ''].filter(Boolean).join('　');
       info.append(t, m);
+      const st = document.createElement('em'); st.className = 'cst';
+      info.append(st);
+      const acts = document.createElement('div'); acts.className = 'cacts2';
       const go = document.createElement('a'); go.className = 'cgo'; go.target = '_blank'; go.rel = 'noopener';
-      if (open === 'borrow') { go.href = BORROW_URL; go.textContent = '予約へ'; go.addEventListener('click', () => { copy(r.t.split(/[－(（]/)[0]).then((ok) => ok && toast('書名をコピーしました。検索欄に貼り付けてください')); }); }
-      else { go.href = amazonUrl(r.t.split(/[－(（]/)[0], r.a); go.textContent = 'Amazonへ'; }
+      acts.append(go);
+      const done = document.createElement('button'); done.type = 'button'; done.className = 'cdone';
+      if (open === 'borrow') {
+        const s = avail[isbnOf(r)];
+        if (s) { st.textContent = s.status; st.dataset.s = s.status; }
+        else if (!calilOff) st.textContent = (tried(r) && !isbnOf(r)) ? 'ISBNが見つからず確認できません' : '貸出状況を確認中…';
+        go.href = (s && s.reserveurl) || BORROW_URL; go.textContent = s && s.reserveurl ? '予約ページへ' : '予約へ';
+        go.addEventListener('click', () => { if (!(s && s.reserveurl)) copy(plain(r.t)).then((ok) => ok && toast('書名をコピーしました。検索欄に貼り付けてください')); });
+        done.textContent = '予約した';
+        done.addEventListener('click', () => { setAcq(r, '予約済み'); toggleBag(open, r); toast('「' + plain(r.t) + '」を予約済みにしました'); render(); onChange && onChange(); });
+      } else {
+        const n10 = isbn10(isbnOf(r));
+        go.href = n10 ? 'https://www.amazon.co.jp/dp/' + n10 : amazonUrl(plain(r.t), r.a); go.textContent = 'Amazonへ';
+        const rk = document.createElement('a'); rk.className = 'cgo sub'; rk.target = '_blank'; rk.rel = 'noopener';
+        rk.href = 'https://books.rakuten.co.jp/search?sitem=' + encodeURIComponent(isbnOf(r) || plain(r.t)); rk.textContent = '楽天';
+        acts.append(rk);
+        done.textContent = '買った';
+        done.addEventListener('click', () => { setAcq(r, '購入済み'); toggleBag(open, r); toast('「' + plain(r.t) + '」を購入済みにしました'); render(); onChange && onChange(); });
+      }
       const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'crm'; rm.setAttribute('aria-label', 'リストから外す'); rm.textContent = '×';
-      rm.addEventListener('click', () => { toggleBag(open, r); render(); onChange && onChange(); });
-      li.append(info, go, rm); ul.append(li);
+      rm.addEventListener('click', () => { if (r.ext) setAcq(r, ''); toggleBag(open, r); render(); onChange && onChange(); });
+      acts.append(done);
+      li.append(info, acts, rm); ul.append(li);
     });
+    if (open === 'borrow') checkAvail(list);
+    else fillIsbn(list);
     $('cEmpty').style.display = list.length ? 'none' : 'block';
     $('cCopy').style.display = list.length ? 'block' : 'none';
     $('cClear').style.display = list.length ? 'block' : 'none';
