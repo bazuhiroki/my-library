@@ -173,8 +173,10 @@ export async function factory(req, res) {
           'タスク': { title: [{ text: { content: String(it.title || '（無題）').slice(0, 100) } }] }, '工程': { select: { name: '搬入' } }, '担当': { select: { name: '🧭 Triage' } },
           '領域': { select: { name: pick(it.area, AREAS, '仕事') } }, '種類': { select: { name: pick(it.kind, KINDS, '単発') } }, '繰り返し': { select: { name: pick(it.repeat, REPEATS, 'なし') } },
           '階層': { select: { name: pick(it.level, LEVELS, '子') } }, 'エネルギー': { select: { name: pick(it.energy, ENERGY, 'Mid') } },
-          '次の一手': rtLong(it.next), '原文': rtLong(b.raw), '入力元': { select: { name: b.input === '音声' ? '音声' : '文字' } }, 'AIメモ': rtLong('工場長の整理：' + (plan.reply || '')),
+          '次の一手': rtLong(it.next), '原文': rtLong(b.raw), '入力元': { select: { name: b.input === '音声' ? '音声' : '文字' } }, 'AIメモ': rtLong(b.note || '工場長の整理：' + (plan.reply || '')),
         };
+        if (it.priority) Object.assign(props, { '優先度': { select: { name: it.priority } }, '工程': { select: { name: it.plan ? '計画済み' : '仕分け済み' } }, '担当': { select: { name: '👤 自分' } } });
+        if (/^\d{4}-\d{2}-\d{2}$/.test(it.plan || '')) props['予定日'] = { date: { start: it.plan } };
         if (Number(it.estimate) > 0) props['見積分'] = { number: Math.round(Number(it.estimate)) };
         if (/^\d{4}-\d{2}-\d{2}$/.test(it.due || '')) props['期限'] = { date: { start: it.due } };
         if (par) props['親タスク'] = { relation: [{ id: par }] };
@@ -182,7 +184,7 @@ export async function factory(req, res) {
         const pg = await notion(() => `${NOTION}/pages`, 'POST', (v) => ({ parent: parent(LINE)(v), properties: props }));
         made[it.key || it.title] = pg.id;
       }
-      return res.status(200).json({ created: Object.keys(made).length, projectId });
+      return res.status(200).json({ created: Object.keys(made).length, projectId, made });
     }
 
     if (b.action === 'start') {
