@@ -27,6 +27,10 @@
     {
       "source": "/api/stones",
       "destination": "/api/meter-notion?mode=stones"
+    },
+    {
+      "source": "/api/factory",
+      "destination": "/api/meter-notion?mode=factory"
     }
   ],
   "crons": [

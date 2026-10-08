@@ -247,10 +247,11 @@ export function createStones({ scene, colliders, world, warp, toast, cinema }) {
   function close() { el.classList.remove('open'); }
   $('stClose').addEventListener('click', close);
   hang();
-  load(false);
+  let fetched = false;
 
   // ---------------- 毎フレーム
-  function update(dt, time) {
+  function update(dt, time, player) {
+    if (player && !fetched && Math.hypot(player.x - cx, player.z - cz) < 45) { fetched = true; load(false); }
     beams.forEach((g, i) => { g.rotation.z = Math.sin(time * 0.6 + i * 1.1) * 0.35; g.rotation.x = Math.cos(time * 0.45 + i) * 0.2; });
     columns.forEach((c, i) => { c.ringMat.emissiveIntensity = 1.2 + Math.sin(time * 2 + i * 1.05) * 0.6; if (c.deco) { c.deco.position.y = 5.05 + Math.sin(time * 1.5 + i) * 0.12; c.deco.rotation && (c.deco.rotation.y = time); } });
     facadeBars.forEach((b, i) => { b.material.emissiveIntensity = 1.1 + Math.max(0, Math.sin(time * 1.6 - i * 0.7)) * 1.4; });

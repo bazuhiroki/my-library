@@ -30,6 +30,8 @@ import { createPlaces } from './places.js';
 import { createMuseum } from './museum.js';
 import { createMind } from './mind.js';
 import { createStones } from './stones.js';
+import { createPerf } from './perf.js';
+import { createFactory } from './factory.js';
 import { createSpineAtlas, patchSpineMaterial } from './spines.js';
 
 let renderer;
@@ -229,6 +231,7 @@ const hemi=new THREE.HemisphereLight(0xcfe0f0,0x3a2a1c,0.4);scene.add(hemi);
 const amb=new THREE.AmbientLight(0xffd9b0,0.12);scene.add(amb);
 const sun=new THREE.DirectionalLight(0xffffff,1.5);sun.castShadow=true;const sm=isTouch?1024:2048;sun.shadow.mapSize.set(sm,sm);
 Object.assign(sun.shadow.camera,{left:-28,right:28,top:28,bottom:-28,near:1,far:180});sun.shadow.camera.updateProjectionMatrix();sun.shadow.bias=-0.0006;sun.shadow.normalBias=0.04;scene.add(sun);scene.add(sun.target);
+const perf=createPerf({renderer,scene,camera,sun});
 const skyU={top:{value:new THREE.Color()},hor:{value:new THREE.Color()},bot:{value:new THREE.Color(0x2a2a28)}};
 const sky=new THREE.Mesh(new THREE.SphereGeometry(900,32,16),new THREE.ShaderMaterial({uniforms:skyU,side:THREE.BackSide,depthWrite:false,fog:false,
   vertexShader:'varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}',
@@ -447,7 +450,7 @@ cv.addEventListener('pointermove',e=>{
   if(joy&&e.pointerId===joy.id){let dx=e.clientX-joy.cx,dy=e.clientY-joy.cy;const d=Math.hypot(dx,dy),mx=46;if(d>mx){dx*=mx/d;dy*=mx/d;}knob.style.transform=`translate(${dx}px,${dy}px)`;mv.x=dx/mx;mv.y=dy/mx;}
   else if(look&&e.pointerId===look.id){const s=isTouch?.0055:.0038;player.yaw-=(e.clientX-look.x)*s;player.pitch=clamp(player.pitch-(e.clientY-look.y)*s,-1.3,1.3);look.x=e.clientX;look.y=e.clientY;}});
 function endPtr(e){if(joy&&e.pointerId===joy.id){joy=null;mv.x=mv.y=0;joyEl.classList.remove('on');}
-  if(look&&e.pointerId===look.id){const moved=Math.hypot(e.clientX-look.sx,e.clientY-look.sy);if(e.type==='pointerup'&&moved<9&&performance.now()-look.t<400){const h=hitBook(e.clientX,e.clientY);if(h)openBook(h.wi,h.id);else{ndc.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);const w=wishPile.pick(ndc,camera);if(w){closeBook(true);journal.open(w==='table'?null:w);}else if(archive.pick(ndc,camera)){closeBook(true);}else if(world.pickBoard(ndc,camera)){mapUI.open();}else if(stones.pick(ndc,camera)){closeBook(true);}else if(mind.pick(ndc,camera)){closeBook(true);}else if(museum.pick(ndc,camera)){closeBook(true);}else if(sports.pick(ndc,camera)){closeBook(true);}else if(cinema.pick(ndc,camera)){closeBook(true);}else if(feature.pick(ndc,camera)){closeBook(true);}else if(elf.pick(camera)){closeBook(true);}else if(life.recAt(camera,player)){const lr=life.recAt(camera,player);closeBook(true);journal.open(lr);}else if(pulled)closeBook(false);}}look=null;}}
+  if(look&&e.pointerId===look.id){const moved=Math.hypot(e.clientX-look.sx,e.clientY-look.sy);if(e.type==='pointerup'&&moved<9&&performance.now()-look.t<400){const h=hitBook(e.clientX,e.clientY);if(h)openBook(h.wi,h.id);else{ndc.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);const w=wishPile.pick(ndc,camera);if(w){closeBook(true);journal.open(w==='table'?null:w);}else if(archive.pick(ndc,camera)){closeBook(true);}else if(world.pickBoard(ndc,camera)){mapUI.open();}else if(factory.pick(ndc,camera)){closeBook(true);}else if(stones.pick(ndc,camera)){closeBook(true);}else if(mind.pick(ndc,camera)){closeBook(true);}else if(museum.pick(ndc,camera)){closeBook(true);}else if(sports.pick(ndc,camera)){closeBook(true);}else if(cinema.pick(ndc,camera)){closeBook(true);}else if(feature.pick(ndc,camera)){closeBook(true);}else if(elf.pick(camera)){closeBook(true);}else if(life.recAt(camera,player)){const lr=life.recAt(camera,player);closeBook(true);journal.open(lr);}else if(pulled)closeBook(false);}}look=null;}}
 cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
 addEventListener('keydown',e=>{const ae=document.activeElement;if(ae&&/INPUT|TEXTAREA/.test(ae.tagName))return;keys[e.code]=true;});addEventListener('keyup',e=>{keys[e.code]=false;});addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
 function blocked(x,z){if(player.seated)return true;if(!world.walkable(x,z))return true;const r=.32;for(const c of colliders)if(x>c.x0-r&&x<c.x1+r&&z>c.z0-r&&z<c.z1+r)return true;return false;}
@@ -468,10 +471,11 @@ function updatePlayer(dt){
 // ================= loop =================
 const clock=new THREE.Clock();let hintT=0,lastMin=-1,zoneT=0;
 function loop(){
+  if(!perf.frame()){requestAnimationFrame(loop);return;}
   const dt=Math.min(clock.getDelta(),.05),time=clock.elapsedTime;
   if(S.auto)S.hour=(S.hour+dt/20)%24;
   if(S.autoWx){S.nextWx-=dt;if(S.nextWx<0){const r=Math.random();setWx(r<.45?'clear':r<.7?'cloudy':r<.9?'rain':'snow');S.nextWx=rand(3,6)*20;}}
-  updateEnv(dt,time);updateFigures(dt,time);world.update(dt,time,player,S.hour);life.update(dt,time,started?player:null,S.hour);elf.update(dt,time,camera,S.hour);feature.update(dt,time);cinema.update(dt,time,camera,started?player:null);sports.update(dt,time,started?player:null);stones.update(dt,time);mind.update(dt,time,started?player:null);museum.update(dt,time,started?player:null);places.update(dt,started?player:null);counterDecor.update(time);if(started)counterUI.update(player);
+  updateEnv(dt,time);updateFigures(dt,time);world.update(dt,time,player,S.hour);life.update(dt,time,started?player:null,S.hour);elf.update(dt,time,camera,S.hour);feature.update(dt,time);cinema.update(dt,time,camera,started?player:null);sports.update(dt,time,started?player:null);factory.update(dt,time,started?player:null);stones.update(dt,time,started?player:null);mind.update(dt,time,started?player:null);museum.update(dt,time,started?player:null);places.update(dt,started?player:null);counterDecor.update(time);if(started)counterUI.update(player);
   if(started)updatePlayer(dt);else{camera.position.set(0,1.62,19.5);camera.rotation.set(.12,Math.sin(time*.15)*.3,0);}
   if(pulled){pulled.t=clamp(pulled.t+dt*3.2*pulled.dir,0,1);const e=1-Math.pow(1-pulled.t,3);setPull(pulled.w,pulled.id,e*.17);if(pulled.dir<0&&pulled.t<=0){setPull(pulled.w,pulled.id,0);pulled=null;}}
   if(warp>0){warp=Math.max(0,warp-dt*1.4);$('warp').style.opacity=(Math.sin(warp*Math.PI)).toFixed(3);}
@@ -479,7 +483,7 @@ function loop(){
   $('clockW').textContent=WX[S.wx].name;
   zoneT-=dt;if(zoneT<0&&started){zoneT=.4;$('zone').textContent=zoneName();}
   hintT-=dt;if(hintT<0&&started&&!pulled){hintT=.22;const h=hitBook(innerWidth/2,innerHeight/2);const el=$('hint');
-    if(!h){ndc.set(0,0);const wp=wishPile.pick(ndc,camera);if(wp){el.innerHTML='';const b=document.createElement('b');b.textContent=wp==='table'?'読みたい本の台':'『'+wp.title+'』';el.append(b,document.createTextNode(wp==='table'?`　${wishPile.count()}冊`:'　読みたい本'));el.classList.add('on');}else{const ah=archive.hint(camera);if(ah){el.innerHTML='';const b=document.createElement('b');b.textContent=ah[0];el.append(b,document.createTextNode(ah[1]));el.classList.add('on');}else if(world.pickBoard(ndc,camera)){el.innerHTML='';const b=document.createElement('b');b.textContent='館内案内図';el.append(b,document.createTextNode('　タップで開く'));el.classList.add('on');}else{const lh=elf.hint(camera)||stones.hint(camera)||mind.hint(camera)||museum.hint(camera)||cinema.hint(camera)||sports.hint(camera)||feature.hint(camera)||life.hint(camera,player)||art.hint(camera);if(lh){el.innerHTML='';const b=document.createElement('b');b.textContent=lh[0];el.append(b,document.createTextNode(lh[1]));el.classList.add('on');}else el.classList.remove('on');}}}
+    if(!h){ndc.set(0,0);const wp=wishPile.pick(ndc,camera);if(wp){el.innerHTML='';const b=document.createElement('b');b.textContent=wp==='table'?'読みたい本の台':'『'+wp.title+'』';el.append(b,document.createTextNode(wp==='table'?`　${wishPile.count()}冊`:'　読みたい本'));el.classList.add('on');}else{const ah=archive.hint(camera);if(ah){el.innerHTML='';const b=document.createElement('b');b.textContent=ah[0];el.append(b,document.createTextNode(ah[1]));el.classList.add('on');}else if(world.pickBoard(ndc,camera)){el.innerHTML='';const b=document.createElement('b');b.textContent='館内案内図';el.append(b,document.createTextNode('　タップで開く'));el.classList.add('on');}else{const lh=elf.hint(camera)||factory.hint(camera)||stones.hint(camera)||mind.hint(camera)||museum.hint(camera)||cinema.hint(camera)||sports.hint(camera)||feature.hint(camera)||life.hint(camera,player)||art.hint(camera);if(lh){el.innerHTML='';const b=document.createElement('b');b.textContent=lh[0];el.append(b,document.createTextNode(lh[1]));el.classList.add('on');}else el.classList.remove('on');}}}
     else if(h){const r=RECS[wallMeshes[h.wi].rec[h.id]];el.innerHTML='';const b=document.createElement('b');b.textContent='『'+splitTitle(r.t)[0]+'』';el.append(b,document.createTextNode(isRead(r)?'　読んだ本':''));el.classList.add('on');}}
   cinema.render(camera);renderer.render(scene,camera);requestAnimationFrame(loop);}
 $('enter').addEventListener('click',()=>{started=true;$('intro').classList.add('gone');cv.focus();});
@@ -499,7 +503,8 @@ const sports=createSports({scene,M,colliders,world,warp:warpToPoint,toast:(m)=>c
 const museum=createMuseum({scene,M,colliders,world,warp:warpToPoint,toast:(m)=>counterUI.toast(m),cinema});
 const mind=createMind({scene,M,colliders,toast:(m)=>counterUI.toast(m),elf});
 const stones=createStones({scene,colliders,world,warp:warpToPoint,toast:(m)=>counterUI.toast(m),cinema});
-const places=createPlaces({cinema,sports,museum,mind,stones});
+const factory=createFactory({scene,colliders,world,toast:(m)=>counterUI.toast(m)});
+const places=createPlaces({cinema,sports,museum,mind,stones,factory});
 const mapUI=createMapUI({warp:(w)=>warpToPoint(w),player,zoneText:()=>zoneName(),onOpen:()=>{closeSearch();journal.close();archive.close();}});
 function warpToPile(){warp=1;setTimeout(()=>{player.yaw=Math.PI;player.x=PILE.x;player.z=PILE.z-1.85;player.pitch=-0.45;started=true;$('intro').classList.add('gone');},260);}
 // スキャナー
@@ -539,7 +544,7 @@ $('sManualGo').addEventListener('click',()=>{const v=$('sManual').value.replace(
 $('sManual').addEventListener('keydown',e=>{if(e.key==='Enter')$('sManualGo').click();});
 addEventListener('keydown',e=>{if(e.key==='Escape'){closeScan();journal.close();}});
 loadCast(p=>{$('loadNote').textContent=`館の人々が集まっています… ${Math.round(p*100)}%`;})
-  .then(cast=>{people=createPeople({scene,cast,seats,W,L,counters:COUNTERS});life.attach(cast,people);elf.attach(cast);cinema.attach(cast);sports.attach(cast);museum.attach(cast);$('loadNote').textContent='';})
+  .then(cast=>{people=createPeople({scene,cast,seats,W,L,counters:COUNTERS});life.attach(cast,people);elf.attach(cast);cinema.attach(cast);sports.attach(cast);museum.attach(cast);factory.attach(cast);$('loadNote').textContent='';})
   .catch(e=>{console.error(e);$('loadNote').textContent='登場人物を読み込めませんでした';});
 // Notion と公式発表から最新の蔵書を取り込む（取れなければ同梱のデータのまま）
 fetch('/api/books').then(r=>r.ok?r.json():null).then(d=>{if(!d||!Array.isArray(d.rows))return;

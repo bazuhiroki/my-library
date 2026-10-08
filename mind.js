@@ -382,13 +382,14 @@ export function createMind({ scene, M, colliders, toast, elf }) {
   function open() { el.classList.add('open'); render(); loadHistory().then(() => { if (S.step === 'home') render(); }); }
   function close() { el.classList.remove('open'); if (rec) rec.stop(); if (audio) { audio.pause(); audio = null; } }
   $('mdClose').addEventListener('click', close);
-  loadHistory();
+  let histLoaded = false;
 
   // ---------------- 毎フレーム：近づくとエルフが庵で待っている
   let summoned = false;
   function update(dt, time, player) {
     if (!player) return;
     const d = Math.hypot(player.x - hx, player.z - hz);
+    if (!histLoaded && d < 25) { histLoaded = true; loadHistory(); }
     if (elf && elf.summon) {
       if (d < 11 && !summoned) summoned = !!elf.summon(ELF_SPOT);
       else if (d > 16 && summoned) { elf.release(); summoned = false; }

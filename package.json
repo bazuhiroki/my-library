@@ -12,6 +12,7 @@
   "dependencies": {
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",
+    "nodemailer": "^6.10.1",
     "three": "0.128.0"
   },
   "devDependencies": {

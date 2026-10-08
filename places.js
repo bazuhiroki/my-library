@@ -5,15 +5,16 @@ export function areaOf(p) {
   const { x, z } = p;
   if (Math.hypot(x + 63, z - 10) < 8.5) return 'mind';
   if (x > 49.5 && x < 72.5 && z > 37.5 && z < 54.5) return 'stones';
+  if (x > 5.5 && x < 30.5 && z > 49.5 && z < 64.5) return 'factory';
   if (x > 69.6 || (x > 45 && z < -34.3) || (x > 45 && x < 48 && z < -20.6)) return 'museum';
   if (x > 42.4) return z > 0 ? 'sports' : 'cinema';
   if (Math.abs(x) <= 6.3 && Math.abs(z) <= 22.7) return 'library';
   if (z < -22.3 && z > -35.6 && Math.abs(x) < 31) return 'library';
   return 'outdoor';
 }
-const NAMES = { library: 'My Library', cinema: 'My Cinema', sports: 'My Field', museum: 'My Museum', mind: '心の部屋', stones: 'SixTONES館', outdoor: 'My Library' };
+const NAMES = { library: 'My Library', cinema: 'My Cinema', sports: 'My Field', museum: 'My Museum', mind: '心の部屋', stones: 'SixTONES館', factory: 'My Factory', outdoor: 'My Library' };
 
-export function createPlaces({ cinema, sports, museum, mind, stones }) {
+export function createPlaces({ cinema, sports, museum, mind, stones, factory }) {
   const style = document.createElement('style');
   // 図書館の外では本のための表示を隠し、その場所のための表示だけを出す
   style.textContent = `body[data-area]:not([data-area=library]) #bagChip,body[data-area]:not([data-area=library]) #wishChip,body[data-area]:not([data-area=library]) #arcChip,body[data-area]:not([data-area=library]) #bmChip,body[data-area]:not([data-area=library]) #lsChip,body[data-area]:not([data-area=library]) #scanBtn{display:none!important}
@@ -27,7 +28,9 @@ body:not([data-area=museum]) #musChip,body:not([data-area=museum]) #musChip2{dis
 body:not([data-area=mind]) #mindChip,body:not([data-area=mind]) #mindChip2{display:none!important}
 #mindChip,#mindChip2{pointer-events:auto;cursor:pointer;font-family:var(--ui);text-align:left;display:block;border:1px solid rgba(160,210,180,.5);color:#d6eedd}
 body:not([data-area=stones]) #stChip,body:not([data-area=stones]) #stChip2{display:none!important}
-#stChip,#stChip2{pointer-events:auto;cursor:pointer;font-family:var(--ui);text-align:left;display:block;border:1px solid rgba(255,255,255,.55);color:#fff}`;
+#stChip,#stChip2{pointer-events:auto;cursor:pointer;font-family:var(--ui);text-align:left;display:block;border:1px solid rgba(255,255,255,.55);color:#fff}
+body:not([data-area=factory]) #fcChip,body:not([data-area=factory]) #fcChip2{display:none!important}
+#fcChip,#fcChip2{pointer-events:auto;cursor:pointer;font-family:var(--ui);text-align:left;display:block;border:1px solid rgba(210,170,120,.6);color:#f2e8d8}`;
   document.head.append(style);
   const left = document.querySelector('#topbar .left');
   const chip = (id, onClick) => { const b = document.createElement('button'); b.type = 'button'; b.id = id; b.className = 'chip small'; b.addEventListener('click', onClick); if (left) left.append(b); return b; };
@@ -41,13 +44,15 @@ body:not([data-area=stones]) #stChip,body:not([data-area=stones]) #stChip2{displ
   const k2 = mind ? chip('mindChip2', () => mind.open()) : null;
   const t1 = stones ? chip('stChip', () => stones.open({ tab: 'videos' })) : null;
   const t2 = stones ? chip('stChip2', () => stones.open({ tab: 'news' })) : null;
+  const f1 = factory ? chip('fcChip', () => factory.open({ tab: 'dwarf' })) : null;
+  const f2 = factory ? chip('fcChip2', () => factory.open({ tab: 'bench' })) : null;
   // 虫めがねボタンは、その場所の「探す」に替える（映画館なら動画、運動場なら記録）
   let area = '';
   document.addEventListener('click', (e) => {
     const btn = e.target && e.target.closest && e.target.closest('#searchBtn');
     if (!btn || area === 'library' || area === 'outdoor') return;
     e.stopPropagation(); e.preventDefault();
-    if (area === 'cinema') cinema.open(); else if (area === 'museum' && museum) museum.open(); else if (area === 'mind' && mind) mind.open(); else if (area === 'stones' && stones) stones.open({}); else sports.open('log');
+    if (area === 'cinema') cinema.open(); else if (area === 'museum' && museum) museum.open(); else if (area === 'mind' && mind) mind.open(); else if (area === 'stones' && stones) stones.open({}); else if (area === 'factory' && factory) factory.open({ tab: 'dwarf' }); else sports.open('log');
   }, true);
   function refresh() {
     const list = cinema.list || [];
@@ -57,6 +62,7 @@ body:not([data-area=stones]) #stChip,body:not([data-area=stones]) #stChip2{displ
     const st = sports.weekStats(); const w = (sports.data.weight || [])[0];
     s1.textContent = '今週 ' + st.km.toFixed(1) + 'km・' + st.n + '回';
     s2.textContent = w ? '体重 ' + w.kg + 'kg' : '体重を記録する';
+    if (f1) { f1.textContent = '工場長に話す'; const u = factory.urgentCount; f2.textContent = '作業台' + (u ? '　①' + u + '件' : 'で今やることを選ぶ'); }
     if (t1) { const n = stones.newCount; t1.textContent = '新着動画' + (n ? '　' + n + '本' : 'を見る'); t2.textContent = 'ニュースを読む'; }
     if (k1) { k1.textContent = 'エルフと話す'; k2.textContent = '心の記録 ' + (mind.count || 0) + '件'; }
     if (m1) { const ml = museum.list || []; m1.textContent = '展示室の案内をひらく'; m2.textContent = '収蔵 ' + ml.length + '本・観たい ' + ml.filter((x) => x && x.status === '観たい').length + '本'; }

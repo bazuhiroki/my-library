@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { WARPS } from './world.js';
 
-const VX0 = -74, VZ0 = -48, VW = 168, VH = 98;
+const VX0 = -74, VZ0 = -48, VW = 168, VH = 116;
 const MINCHO = `'Shippori Mincho B1', 'Hiragino Mincho ProN', serif`;
 const EAST_SEGS = [[-21.2, -17.55], [-14.45, -9.55], [-6.45, -1.55], [1.55, 6.45], [9.55, 14.45], [17.55, 21.2]];
 
@@ -16,6 +16,7 @@ const RECTS = [
   { x0: 70, x1: 90, z0: -45, z1: -23, fill: '#d8d0c0' },
   { x0: -66, x1: -60, z0: 7.5, z1: 12.5, fill: '#8a6a4a' },
   { x0: 50, x1: 72, z0: 38, z1: 54, fill: '#26262c' },
+  { x0: 6, x1: 30, z0: 50, z1: 64, fill: '#6a3a2a' },
   { x0: 50, x1: 88, z0: 6, z1: 33, fill: '#4f8a3e' },
   { x0: 58, x1: 80, z0: 11, z1: 28, fill: '#b4553a' },
   { x0: 61, x1: 77, z0: 15, z1: 24, fill: '#4f8a3e' },
@@ -65,7 +66,7 @@ const LABELS = {
   pile: [0, 11.6, '読みたい本'], loan: [-3.2, 0, '貸出の記録'], prize: [3.2, -4, '文学賞'], rose: [0, -20.2, '薔薇窓'],
   lobby: [0, -26.2, '玄関ホール'], papers: [-18, -29, '論文の間'], mags: [18, -29, '雑誌の回廊'],
   court0: [0, 27, '前庭'], fountain: [-3.5, 38.6, '噴水'], court: [24, 5, '中庭'],
-  lake: [-48, 31, '湖'], cinema: [59, -19, '映画館'], field: [69, 19.5, '運動場'], museum: [80, -34, '映画博物館'], mind: [-63, 5.5, '心の部屋'], stones: [61, 44, 'SixTONES館'], camp: [-33, 10.5, '焚き火'], cafe: [-27, 25.5, 'カフェ'], beer: [21, 41.5, 'ビアガーデン'],
+  lake: [-48, 31, '湖'], cinema: [59, -19, '映画館'], field: [69, 19.5, '運動場'], museum: [80, -34, '映画博物館'], mind: [-63, 5.5, '心の部屋'], stones: [61, 44, 'SixTONES館'], factory: [18, 57, 'My Factory'], camp: [-33, 10.5, '焚き火'], cafe: [-27, 25.5, 'カフェ'], beer: [21, 41.5, 'ビアガーデン'],
 };
 const AREA = { hall: '本の大広間', annex: '北の翼廊', out: '外' };
 

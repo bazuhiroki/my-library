@@ -43,6 +43,7 @@ export const WARPS = [
   { id: 'field', name: '運動場', area: 'out', x: 51.5, z: 19.5, yaw: -Math.PI / 2, pitch: 0.02 },
   { id: 'museum', name: '映画博物館', area: 'out', x: 72, z: -36, yaw: -Math.PI / 2, pitch: 0.06 },
   { id: 'mind', name: '心の部屋（湖の庵）', area: 'out', x: -57.6, z: 10, yaw: Math.PI / 2, pitch: 0.04 },
+  { id: 'factory', name: 'My Factory', area: 'out', x: 14, z: 47.6, yaw: Math.PI, pitch: 0.06 },
   { id: 'stones', name: 'SixTONES館', area: 'out', x: 55, z: 34.5, yaw: Math.PI, pitch: 0.08 },
 ];
 
@@ -420,6 +421,7 @@ export function createWorld({ scene, box, mesh, M, textTex, colliders, tex, mapT
     if (Math.hypot(x + 63, z - 10) < 8.5) return '心の部屋（湖のほとりの庵）';
     if (x > 49.5 && x < 72.5 && z > 37.5 && z < 54.5) return 'SixTONES館';
     if (x > 53 && x < 57 && z > 32.5 && z <= 37.5) return 'SixTONES館への小道';
+    if (x > 5.5 && x < 30.5 && z > 49.5 && z < 64.5) return 'My Factory';
     if (x > 69.8) return '映画博物館';
     if (x > 45 && (z < -34.3 || (x < 48 && z < -20.6))) return '博物館への小道';
     if (z < -22.6) {
