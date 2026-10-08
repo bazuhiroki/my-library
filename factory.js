@@ -213,15 +213,16 @@ export function createFactory({ scene, colliders, world, toast }) {
   const h = (tag, cls, t) => { const e = document.createElement(tag); if (cls) e.className = cls; if (t !== undefined) e.textContent = t; return e; };
   const btn = (p, label, fn, main) => { const b = h('button', 'fc-btn' + (main ? ' main' : ''), label); b.type = 'button'; b.addEventListener('click', fn); p.append(b); return b; };
   const TABS = [['all', '全体'], ['now', 'いま'], ['next', 'これから'], ['dwarf', '工場長に聞く']];
-  let tab = 'all';
+  let tab = 'all', detail = null;
   const chat = { messages: [], plan: null, thinking: false, input: '文字' };
     let timer = null; try { timer = JSON.parse(localStorage.getItem(TIMER) || 'null'); } catch (e) { timer = null; }
 
   function render() {
     const tabs = $('fcTabs'); tabs.innerHTML = '';
-    TABS.forEach(([k, l]) => { const b = h('button', '', l); b.type = 'button'; b.setAttribute('aria-pressed', tab === k ? 'true' : 'false'); b.addEventListener('click', () => { tab = k; render(); }); tabs.append(b); });
+    TABS.forEach(([k, l]) => { const b = h('button', '', l); b.type = 'button'; b.setAttribute('aria-pressed', tab === k && !detail ? 'true' : 'false'); b.addEventListener('click', () => { tab = k; detail = null; render(); }); tabs.append(b); });
     const body = $('fcBody'); body.innerHTML = '';
     if (!data) { body.append(h('p', 'fc-note', '工場のデータを読み込み中…')); return; }
+    if (detail) { renderDetail(body); return; }
     ({ all: renderAll, now: renderNow, next: renderNext, dwarf: renderDwarf })[tab](body);
   }
 
@@ -277,6 +278,7 @@ export function createFactory({ scene, colliders, world, toast }) {
     b.append(h('b', '', t.title), h('span', '', linkLabel(t)), h('span', '', [t.est ? t.est + '分' : '', t.plan ? '予定' + t.plan.slice(5, 10) : '', t.due ? '⚑' + t.due.slice(5, 10) : '', t.postponed >= 3 ? '後回し' + t.postponed + '回' : ''].filter(Boolean).join('・')));
     if (t.next) b.append(h('span', '', '次の一手：' + t.next));
     if (acts) { const a = h('div', 'fc-acts'); acts(a); b.append(a); }
+    b.style.cursor = 'pointer'; b.addEventListener('click', (e) => { if (e.target.closest('button,input,a')) return; detail = { kind: 'task', id: t.id }; render(); });
     return b;
   };
   // 全体：プロジェクトと進み具合
@@ -290,13 +292,64 @@ export function createFactory({ scene, colliders, world, toast }) {
       const c = h('div', 'fc-t'); c.style.setProperty('--c', AREA_C[p.area] || '#8a7a6a');
       const bar = h('div'); bar.style.cssText = 'height:6px;border-radius:3px;background:rgba(255,255,255,.08);margin:6px 0;overflow:hidden'; const fill = h('div'); fill.style.cssText = 'height:100%;width:' + pct + '%;background:#d2a978'; bar.append(fill);
       c.append(h('b', '', '📦 ' + p.name), bar, h('span', '', `${pct}%（${done}/${ts.length}）${p.due ? '・⚑' + p.due.slice(5, 10) : ''}${p.area ? '・' + p.area : ''}`), h('span', '', nxt ? '次：' + nxt.title : 'いまは手を動かすものがない'));
+      c.style.cursor = 'pointer'; c.addEventListener('click', () => { detail = { kind: 'project', id: p.id }; render(); });
       body.append(c);
     });
-    const loose = all.filter((t) => !projectOf(t) && t.stage !== '出荷済み' && !hasChildren(t));
+    const loose = all.filter((t) => !projectOf(t) && t.stage !== '出荷済み' && !t.parents.length);
     body.append(h('div', 'fc-lab', `プロジェクトにつながらないもの　${loose.length}件（単発 ${loose.filter((t) => t.kind !== '定型').length}・定型 ${loose.filter((t) => t.kind === '定型').length}）`));
+    loose.slice(0, 12).forEach((t) => body.append(card(t)));
     const logs = data.logs || []; const td = logs.filter((l) => (l.start || '').slice(0, 10) === today()).reduce((a2, l) => a2 + (l.min || 0), 0);
     const wk = logs.filter((l) => (l.start || '') >= ymd(new Date(Date.now() - 7 * 86400e3))).reduce((a2, l) => a2 + (l.min || 0), 0);
     body.append(h('div', 'fc-lab', `作業した時間：今日 ${td}分・この7日 ${wk}分　出荷：今日 ${shippedToday()}件`));
+  }
+  // ---- 詳細：プロジェクト（親→子→孫のツリー）とタスク（実行・状況確認）
+  const STAGE_C = { 搬入: '#8a8a8a', 仕分け済み: '#4a7fd1', 計画済み: '#8a6ad1', 作業中: '#e08a3a', 検品待ち: '#d1b84a', 出荷済み: '#3fa36b', 保留: '#666' };
+  const badge = (stage) => { const b = h('span', '', stage || '—'); b.style.cssText = 'display:inline-block;font-size:11px;padding:1px 7px;border-radius:8px;margin-right:6px;color:#111;background:' + (STAGE_C[stage] || '#888'); return b; };
+  const kids = (t) => data.tasks.filter((x) => x.parents.includes(t.id));
+  function row(t, depth) {
+    const d = h('div', 'fc-t'); d.style.cssText = 'margin:4px 0 4px ' + depth * 14 + 'px;padding:8px 10px;cursor:pointer;border-left-color:' + ((t.priority || '').startsWith('①') ? '#c8352b' : STAGE_C[t.stage] || '#8a7a6a');
+    const k = kids(t); const done = k.filter((x) => x.stage === '出荷済み').length;
+    const top = h('div'); top.append(badge(t.stage), document.createTextNode(t.title + (k.length ? `（${done}/${k.length}）` : '')));
+    d.append(top, h('span', '', [t.level, t.est ? t.est + '分' : '', t.actual ? '実績' + t.actual + '分' : '', t.plan ? '予定' + t.plan.slice(5, 10) : '', t.due ? '⚑' + t.due.slice(5, 10) : ''].filter(Boolean).join('・')));
+    d.addEventListener('click', () => { detail = { kind: 'task', id: t.id }; render(); });
+    return [d, ...(depth < 4 ? k.flatMap((x) => row(x, depth + 1)) : [])];
+  }
+  function renderDetail(body) {
+    const back = h('div', 'fc-acts'); btn(back, '‹ もどる', () => { detail = detail.from || null; render(); }); body.append(back);
+    if (detail.kind === 'project') {
+      const p = data.projects.find((x) => x.id === detail.id); if (!p) { body.append(h('p', 'fc-note', '見つかりませんでした。')); return; }
+      const tops = data.tasks.filter((t) => t.projects.includes(p.id) && !t.parents.some((pid) => (byId(pid) || { projects: [] }).projects.includes(p.id)));
+      const leaves = data.tasks.filter((t) => (projectOf(t) || {}).name === p.name && !hasChildren(t)); const done = leaves.filter((t) => t.stage === '出荷済み').length;
+      body.append(h('b', '', '📦 ' + p.name), h('div', 'fc-lab', [p.area, p.state, p.due ? '期限' + p.due : '', `進み具合 ${leaves.length ? Math.round((done / leaves.length) * 100) : 0}%（${done}/${leaves.length}）`].filter(Boolean).join('・')));
+      if (p.goal) body.append(h('p', 'fc-note', 'ゴール：' + p.goal));
+      if (!tops.length) body.append(h('p', 'fc-note', 'まだタスクがない。工場長に分けてもらおう。'));
+      tops.forEach((t) => body.append(...row(t, 0)));
+      const a = h('div', 'fc-acts'); body.append(a);
+      btn(a, '工場長にこのプロジェクトを聞く', () => { const from = detail; detail = null; tab = 'dwarf'; talk('「' + p.name + '」の進み具合と、次にやることを教えて'); }, true);
+      const n = h('a', 'fc-btn', 'Notionで開く'); n.href = 'https://www.notion.so/' + p.id.replace(/-/g, ''); n.target = '_blank'; n.rel = 'noopener'; n.style.cssText = 'display:inline-flex;align-items:center;text-decoration:none'; a.append(n);
+      return;
+    }
+    const t = byId(detail.id); if (!t) { body.append(h('p', 'fc-note', '見つかりませんでした。')); return; }
+    const head = h('div'); head.append(badge(t.stage), h('b', '', t.title)); body.append(head);
+    body.append(h('div', 'fc-lab', linkLabel(t)));
+    const info = [['優先度', t.priority || '（Triage待ち）'], ['領域・種類', [t.area, t.kind, t.repeat && t.repeat !== 'なし' ? t.repeat : ''].filter(Boolean).join('・')], ['予定日', t.plan ? t.plan.slice(0, 10) : '未定'], ['期限', t.due ? t.due.slice(0, 10) : 'なし'], ['見積・実績', (t.est || '—') + '分 ／ ' + (t.actual || 0) + '分'], ['エネルギー', t.energy || '—'], ['担当', t.owner || '—'], ['後回し', (t.postponed || 0) + '回']];
+    const tb = h('div', 'fc-tree'); info.forEach(([k, v]) => tb.append(h('div', '', k + '：' + v))); body.append(tb);
+    if (t.next) body.append(h('div', 'fc-lab', '次の一手：' + t.next));
+    const par = t.parents.map(byId).filter(Boolean);
+    if (par.length) { body.append(h('div', 'fc-lab', '親')); par.forEach((x) => { const d = h('div', 'fc-t', '↑ ' + x.title); d.style.cursor = 'pointer'; d.addEventListener('click', () => { detail = { kind: 'task', id: x.id, from: detail }; render(); }); body.append(d); }); }
+    const k = kids(t); if (k.length) { body.append(h('div', 'fc-lab', `子タスク（${k.filter((x) => x.stage === '出荷済み').length}/${k.length}）`)); k.forEach((x) => body.append(...row(x, 0))); }
+    const logs = (data.logs || []).filter((l) => l.task === t.id);
+    body.append(h('div', 'fc-lab', '作業ログ ' + logs.length + '回・' + logs.reduce((a2, l) => a2 + (l.min || 0), 0) + '分（直近14日）'));
+    logs.slice(0, 6).forEach((l) => body.append(h('div', 'fc-note', `${(l.start || '').slice(5, 16).replace('T', ' ')}　${l.min}分　${l.result}・集中${l.focus}`)));
+    const a = h('div', 'fc-acts'); body.append(a);
+    if (t.stage !== '出荷済み') {
+      if (timer && timer.id === t.id) btn(a, '作業中（止める）', () => { detail = null; tab = 'now'; render(); }, true);
+      else if (!hasChildren(t)) btn(a, '始める', () => { detail = null; tab = 'now'; startTimer(t); }, true);
+      btn(a, '終わった', () => ship(t)); btn(a, '検品待ちへ', () => setTask(t, { stage: '検品待ち' })); btn(a, t.stage === '保留' ? '保留を解く' : '保留', () => setTask(t, { stage: t.stage === '保留' ? '計画済み' : '保留' }));
+      const inp = h('input', 'fc-ta'); inp.type = 'date'; inp.style.cssText = 'min-height:38px;width:auto'; inp.value = (t.plan || '').slice(0, 10); inp.addEventListener('change', () => setTask(t, { plan: inp.value })); a.append(h('span', 'fc-note', '予定日'), inp);
+    } else btn(a, '作業中に戻す', () => setTask(t, { stage: '作業中' }));
+    btn(a, '工場長に相談', () => { detail = null; tab = 'dwarf'; talk('「' + t.title + '」について相談したい。いまの状況と次にやることを教えて'); });
+    const n = h('a', 'fc-btn', 'Notionで開く'); n.href = 'https://www.notion.so/' + t.id.replace(/-/g, ''); n.target = '_blank'; n.rel = 'noopener'; n.style.cssText = 'display:inline-flex;align-items:center;text-decoration:none'; a.append(n);
   }
   // いま：今日やること（タイマーで作業）
   function renderNow(body) {
