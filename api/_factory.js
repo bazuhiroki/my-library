@@ -50,24 +50,44 @@ async function logsOf(from) {
 
 // ---- 工場長ドワーフ（AI）
 const DWARF = `あなたは「My Library」の世界の工場「My Factory」を仕切る工場長のドワーフです。口調は職人らしく率直で温かい（「〜だな」「任せとけ」程度。乱暴にはしない）。日本語で短く話す。
-役目：本人の話から、やることを整理して生産ラインに載せる。
+役目は2つ。
+1) 質問（予定・プロジェクトの進み具合・何がどのプロジェクトにつながっているか・今日やること）には、【工場の現状】をもとに具体的に答える。このとき items は空にする。
+2) 新しくやることを話されたら、整理して生産ラインに載せる案を出す。
 - 領域：仕事／プライベート。種類：単発／定型（繰り返し：毎日・平日・毎週・毎月）／プロジェクト。
 - 大きな話は 親→子→孫 に分ける。手を動かすのは一番下の層。孫（または一番下）は30分以内で終わる大きさにし、15分で始められる「次の一手」を付ける。
 - 既存のプロジェクトや親タスクと同じなら、新しく作らず既存につなぐ（existing に id を入れる）。
 - 迷う点があれば、質問は1つだけ。わかる範囲で案は必ず出す。
+- 答えるときは、プロジェクトにつながるものと、つながらないもの（単発・定型）を区別して伝える。現状にないことは推測で言わない。
 - 優先度は決めない（Notion の Triage が決める）。期限は本人が言ったときだけ入れる（YYYY-MM-DD）。
 - 無理な詰め込みや自己否定につながる言い方をしない。本人は「結果ではなく過程」を大事にしている。
 出力はJSONだけ。前置きやコードブロックは付けない。`;
+function summary(ctx) {
+  const t0 = jstDate(), end = jstDate(Date.now() + 14 * 86400000);
+  const leaf = ctx.tasks.filter((t) => !ctx.tasks.some((x) => x.parents.includes(t.id) && x.stage !== DONE));
+  const proj = (t, d = 0) => { if (t.projects.length) return t.projects[0]; if (d > 4) return ''; for (const pid of t.parents) { const p = ctx.tasks.find((x) => x.id === pid); const r = p && proj(p, d + 1); if (r) return r; } return ''; };
+  const pname = (id) => (ctx.projects.find((p) => p.id === id) || {}).name || '';
+  const line = (t) => `${t.title}［${pname(proj(t)) || (t.kind === '定型' ? '定型' : '単発')}］${t.plan ? '予定' + t.plan.slice(5, 10) : ''}${t.due ? '期限' + t.due.slice(5, 10) : ''}${t.priority ? ' ' + t.priority.slice(0, 1) : ''}`;
+  const open = leaf.filter((t) => t.stage !== DONE);
+  return [
+    'プロジェクト：' + (ctx.projects.map((p) => { const ts = leaf.filter((t) => proj(t) === p.id); const d = ts.filter((t) => t.stage === DONE).length; return `${p.name}（${d}/${ts.length}完了${p.due ? '・期限' + p.due.slice(5, 10) : ''}）`; }).join('、') || 'なし'),
+    '今日：' + (open.filter((t) => (t.plan && t.plan.slice(0, 10) <= t0) || (t.priority || '').startsWith('①')).map(line).join('／') || 'なし'),
+    'これから2週間：' + (open.filter((t) => t.plan && t.plan.slice(0, 10) > t0 && t.plan.slice(0, 10) <= end).sort((a, b) => a.plan.localeCompare(b.plan)).slice(0, 25).map(line).join('／') || 'なし'),
+    '日付未定：' + (open.filter((t) => !t.plan).slice(0, 15).map(line).join('／') || 'なし'),
+    '最近の出荷：' + (leaf.filter((t) => t.stage === DONE).slice(0, 8).map((t) => t.title).join('、') || 'なし'),
+  ].join('\n').slice(0, 3500);
+}
 function dwarfPrompt(b, ctx) {
   const today = jstDate();
   return `今日：${today}
+【工場の現状】
+${summary(ctx)}
 既存のプロジェクト：${ctx.projects.map((p) => `${p.name}(${p.id})`).join('、') || 'なし'}
 進行中の親タスク：${ctx.parents.map((t) => `${t.title}(${t.id})`).join('、') || 'なし'}
 これまでの会話：
 ${(b.messages || []).map((m) => (m.role === 'user' ? '本人：' : '工場長：') + m.text).join('\n')}
 
-本人の最新の言葉を整理して、案を出してください。
-JSON: {"reply":"工場長の返事（2〜3文。どう分けたかを一言で）","question":"確認したいこと（なければ空）","project":{"existing":"既存プロジェクトのid（なければ空）","name":"新規のときのプロジェクト名（不要なら空）","area":"仕事|プライベート","goal":"ゴール（1文）"},"items":[{"key":"a1","title":"タスク名","level":"親|子|孫","parent":"親の key か 既存親タスクのid（なければ空）","area":"仕事|プライベート","kind":"単発|定型|プロジェクト","repeat":"毎日|平日|毎週|毎月|なし","estimate":分の数,"energy":"High|Mid|Low","due":"YYYY-MM-DD か 空","next":"次の一手（15分で始められる行動）"}]}`;
+本人の最新の言葉が質問なら答え（items は []）、新しくやることなら整理案を出してください。
+JSON: {"reply":"工場長の返事（質問への答えは具体的に4〜6文まで。整理のときはどう分けたかを2〜3文で）","question":"確認したいこと（なければ空）","project":{"existing":"既存プロジェクトのid（なければ空）","name":"新規のときのプロジェクト名（不要なら空）","area":"仕事|プライベート","goal":"ゴール（1文）"},"items":[{"key":"a1","title":"タスク名","level":"親|子|孫","parent":"親の key か 既存親タスクのid（なければ空）","area":"仕事|プライベート","kind":"単発|定型|プロジェクト","repeat":"毎日|平日|毎週|毎月|なし","estimate":分の数,"energy":"High|Mid|Low","due":"YYYY-MM-DD か 空","next":"次の一手（15分で始められる行動）"}]}`;
 }
 
 // ---- 朝の仕事：後回しの数を数え、今日の生産計画をまとめる（cron-meter から呼ぶ）
@@ -125,7 +145,7 @@ export async function factory(req, res) {
       const said = (b.messages || []).filter((m) => m.role === 'user').map((m) => m.text).join(' ');
       if (CRISIS.test(said)) return res.status(200).json(CRISIS_REPLY);
       const ctx = await board();
-      const prompt = dwarfPrompt(b, { projects: ctx.projects, parents: ctx.tasks.filter((t) => t.level === '親' && t.stage !== DONE).slice(0, 30) });
+      const prompt = dwarfPrompt(b, { projects: ctx.projects, tasks: ctx.tasks, parents: ctx.tasks.filter((t) => t.level === '親' && t.stage !== DONE).slice(0, 30) });
       let row; try { row = await usageRow(); } catch (e) { return res.status(503).json({ error: '利用量を確かめられないため、いまは工場長が話せません' }); }
       const model = process.env.GEMINI_API_KEY ? (process.env.GEMINI_MODEL || 'gemini-2.5-flash') : (process.env.MIND_MODEL || 'claude-haiku-4-5-20251001');
       if (row.yen + yenOf(model, Math.ceil((DWARF.length + prompt.length) * 1.2), MAX_OUT * 2) > BUDGET_YEN) return res.status(429).json({ error: '今月のAIの上限（' + BUDGET_YEN + '円）に達したので、工場長は来月まで休みだ。手で登録はできるぞ。' });
