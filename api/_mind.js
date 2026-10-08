@@ -158,7 +158,7 @@ function phasePrompt(b) {
   return ctx;
 }
 
-async function callAI(prompt, system) {
+async function callAI(prompt, system, maxOut) {
   system = system || SYSTEM;
   if (process.env.GEMINI_API_KEY) {
     const models = [process.env.GEMINI_MODEL || 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
@@ -166,7 +166,7 @@ async function callAI(prompt, system) {
     for (const model of models) {
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
-        body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: 0.8, responseMimeType: 'application/json', maxOutputTokens: MAX_OUT, thinkingConfig: { thinkingBudget: 0 } } }),
+        body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: 0.8, responseMimeType: 'application/json', maxOutputTokens: maxOut || MAX_OUT, thinkingConfig: { thinkingBudget: 0 } } }),
       });
       const j = await r.json().catch(() => ({}));
       if (r.status === 404) { last = 'Gemini 404'; continue; }
@@ -182,7 +182,7 @@ async function callAI(prompt, system) {
     const model = process.env.MIND_MODEL || 'claude-haiku-4-5-20251001';
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model, max_tokens: MAX_OUT, system, messages: [{ role: 'user', content: prompt }] }),
+      body: JSON.stringify({ model, max_tokens: maxOut || MAX_OUT, system, messages: [{ role: 'user', content: prompt }] }),
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error('Claude ' + r.status + ': ' + String((j.error && j.error.message) || '').slice(0, 160));
@@ -400,3 +400,6 @@ export async function mind(req, res) {
     return res.status(400).json({ error: 'action が不明です' });
   } catch (e) { return res.status(502).json({ error: String(e.message || e).slice(0, 300) }); }
 }
+
+// My Factory など、ほかの施設とAI・予算・Notionの道具を共有する
+export { callAI, usageRow, addUsage, yenOf, BUDGET_YEN, MAX_OUT, notion, q, parseJSON, jstDate, nowJst, rt, rtLong, ms, txt, CRISIS, CRISIS_REPLY };

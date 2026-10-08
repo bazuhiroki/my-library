@@ -10,6 +10,7 @@ import { sports } from './_sports.js';
 import { movies } from './_movies.js';
 import { mind } from './_mind.js';
 import { stones } from './_stones.js';
+import { factory } from './_factory.js';
 
 export default async function handler(req, res) {
   // Vercel の無料プランは関数が12個までなので、カーリルの問い合わせもここで受ける
@@ -20,6 +21,7 @@ export default async function handler(req, res) {
   if (req.query.mode === 'movie') return movies(req, res);
   if (req.query.mode === 'mind') return mind(req, res);
   if (req.query.mode === 'stones') return stones(req, res);
+  if (req.query.mode === 'factory') return factory(req, res);
   if (!process.env.NOTION_TOKEN) return res.status(503).json({ error: 'NOTION_TOKEN が未設定です' });
   if (req.method !== 'GET' && process.env.APP_PASSCODE && req.headers['x-app-key'] !== process.env.APP_PASSCODE) return res.status(401).json({ error: 'passcode' });
   try {
