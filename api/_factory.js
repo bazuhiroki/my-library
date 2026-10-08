@@ -20,7 +20,7 @@ function taskOf(pg) {
     id: pg.id, title: txt(p['タスク']), stage: sel(p, '工程'), priority: sel(p, '優先度'), owner: sel(p, '担当'), area: sel(p, '領域'), kind: sel(p, '種類'),
     repeat: sel(p, '繰り返し'), level: sel(p, '階層'), energy: sel(p, 'エネルギー'), est: p['見積分']?.number || 0, actual: p['実績分']?.number || 0,
     due: day(p, '期限'), plan: day(p, '予定日'), started: day(p, '着手日時'), shipped: day(p, '出荷日'), next: txt(p['次の一手']),
-    parents: rel(p, '親タスク'), projects: rel(p, 'プロジェクト'), postponed: p['後回し回数']?.number || 0, notify: (p['通知']?.multi_select || []).map((x) => x.name),
+    parents: rel(p, '親タスク'), projects: rel(p, 'プロジェクト'), postponed: p['後回し回数']?.number || 0, created: pg.created_time || '', notify: (p['通知']?.multi_select || []).map((x) => x.name),
   };
 }
 const projectOf = (pg) => { const p = pg.properties || {}; return { id: pg.id, name: txt(p['プロジェクト']), area: sel(p, '領域'), state: sel(p, '状態'), due: day(p, '期限'), goal: txt(p['ゴール']) }; };
@@ -34,12 +34,13 @@ async function readAll(D, body, map, max = 300) {
 }
 const since = (n) => jstDate(Date.now() - n * 86400000);
 async function board() {
-  const [open, done, projects] = await Promise.all([
+  const [open, done, projects, shippedAll] = await Promise.all([
     readAll(LINE, { filter: { property: '工程', select: { does_not_equal: DONE } } }, taskOf),
     readAll(LINE, { filter: { and: [{ property: '工程', select: { equals: DONE } }, { property: '出荷日', date: { on_or_after: since(14) } }] } }, taskOf, 100),
     readAll(PROJ, { filter: { property: '状態', select: { does_not_equal: '完了' } } }, projectOf, 100).catch(() => []),
+    readAll(LINE, { filter: { property: '工程', select: { equals: DONE } } }, (pg) => sel(pg.properties || {}, '領域'), 3000).catch(() => []),
   ]);
-  return { tasks: [...open, ...done], projects };
+  return { tasks: [...open, ...done], projects, totals: { total: shippedAll.length, work: shippedAll.filter((a) => a !== 'プライベート').length } };
 }
 async function logsOf(from) {
   return readAll(LOGS, { filter: { property: '開始', date: { on_or_after: from } }, sorts: [{ property: '開始', direction: 'descending' }] }, (pg) => {
@@ -49,7 +50,7 @@ async function logsOf(from) {
 }
 
 // ---- 工場長ドワーフ（AI）
-const DWARF = `あなたは「My Library」の世界の工場「My Factory」を仕切る工場長のドワーフです。口調は職人らしく率直で温かい（「〜だな」「任せとけ」程度。乱暴にはしない）。日本語で短く話す。
+const DWARF = `あなたは「My Library」の世界の工場「My Factory」を仕切る工場長のドワーフです。口調は職人らしく率直で温かい（「〜だな」「任せとけ」程度。乱暴にはしない）。日本語で、とても短く話す（返事は120字以内、多くても3文）。前置き・繰り返し・励ましの長文はしない。
 役目は2つ。
 1) 質問（予定・プロジェクトの進み具合・何がどのプロジェクトにつながっているか・今日やること）には、【工場の現状】をもとに具体的に答える。このとき items は空にする。
 2) 新しくやることを話されたら、整理して生産ラインに載せる案を出す。
@@ -66,7 +67,7 @@ function summary(ctx) {
   const leaf = ctx.tasks.filter((t) => !ctx.tasks.some((x) => x.parents.includes(t.id) && x.stage !== DONE));
   const proj = (t, d = 0) => { if (t.projects.length) return t.projects[0]; if (d > 4) return ''; for (const pid of t.parents) { const p = ctx.tasks.find((x) => x.id === pid); const r = p && proj(p, d + 1); if (r) return r; } return ''; };
   const pname = (id) => (ctx.projects.find((p) => p.id === id) || {}).name || '';
-  const line = (t) => `${t.title}［${pname(proj(t)) || (t.kind === '定型' ? '定型' : '単発')}］${t.plan ? '予定' + t.plan.slice(5, 10) : ''}${t.due ? '期限' + t.due.slice(5, 10) : ''}${t.priority ? ' ' + t.priority.slice(0, 1) : ''}`;
+  const line = (t) => `${t.title}［${pname(proj(t)) || (t.kind === '定型' ? '定型' : '単発')}］${t.plan ? '予定' + t.plan.slice(5, 16).replace('T', ' ') : ''}${t.due ? '期限' + t.due.slice(5, 10) : ''}${t.priority ? ' ' + t.priority.slice(0, 1) : ''}`;
   const open = leaf.filter((t) => t.stage !== DONE);
   return [
     'プロジェクト：' + (ctx.projects.map((p) => { const ts = leaf.filter((t) => proj(t) === p.id); const d = ts.filter((t) => t.stage === DONE).length; return `${p.name}（${d}/${ts.length}完了${p.due ? '・期限' + p.due.slice(5, 10) : ''}）`; }).join('、') || 'なし'),
@@ -87,7 +88,7 @@ ${summary(ctx)}
 ${(b.messages || []).map((m) => (m.role === 'user' ? '本人：' : '工場長：') + m.text).join('\n')}
 
 本人の最新の言葉が質問なら答え（items は []）、新しくやることなら整理案を出してください。
-JSON: {"reply":"工場長の返事（質問への答えは具体的に4〜6文まで。整理のときはどう分けたかを2〜3文で）","question":"確認したいこと（なければ空）","project":{"existing":"既存プロジェクトのid（なければ空）","name":"新規のときのプロジェクト名（不要なら空）","area":"仕事|プライベート","goal":"ゴール（1文）"},"items":[{"key":"a1","title":"タスク名","level":"親|子|孫","parent":"親の key か 既存親タスクのid（なければ空）","area":"仕事|プライベート","kind":"単発|定型|プロジェクト","repeat":"毎日|平日|毎週|毎月|なし","estimate":分の数,"energy":"High|Mid|Low","due":"YYYY-MM-DD か 空","next":"次の一手（15分で始められる行動）"}]}`;
+JSON: {"reply":"工場長の返事（120字以内。答えは結論から、必要な項目だけ箇条で「・」）","question":"確認したいこと（なければ空）","project":{"existing":"既存プロジェクトのid（なければ空）","name":"新規のときのプロジェクト名（不要なら空）","area":"仕事|プライベート","goal":"ゴール（1文）"},"items":[{"key":"a1","title":"タスク名","level":"親|子|孫","parent":"親の key か 既存親タスクのid（なければ空）","area":"仕事|プライベート","kind":"単発|定型|プロジェクト","repeat":"毎日|平日|毎週|毎月|なし","estimate":分の数,"energy":"High|Mid|Low","due":"YYYY-MM-DD か 空","next":"次の一手（15分で始められる行動）"}]}`;
 }
 
 // ---- 朝の仕事：後回しの数を数え、今日の生産計画をまとめる（cron-meter から呼ぶ）
@@ -149,9 +150,11 @@ export async function factory(req, res) {
       let row; try { row = await usageRow(); } catch (e) { return res.status(503).json({ error: '利用量を確かめられないため、いまは工場長が話せません' }); }
       const model = process.env.GEMINI_API_KEY ? (process.env.GEMINI_MODEL || 'gemini-2.5-flash') : (process.env.MIND_MODEL || 'claude-haiku-4-5-20251001');
       if (row.yen + yenOf(model, Math.ceil((DWARF.length + prompt.length) * 1.2), MAX_OUT * 2) > BUDGET_YEN) return res.status(429).json({ error: '今月のAIの上限（' + BUDGET_YEN + '円）に達したので、工場長は来月まで休みだ。手で登録はできるぞ。' });
-      const out = await callAI(prompt, DWARF, MAX_OUT * 2);
+      const out = await callAI(prompt, DWARF, MAX_OUT + 300);
       try { await addUsage(row, out.model, out.inTok, out.outTok); } catch (e) { /* 続ける */ }
       const plan = parseJSON(out.text);
+      const clip = (x, n) => { x = String(x || '').trim(); if (x.length <= n) return x; const cut = x.slice(0, n); const k = Math.max(cut.lastIndexOf('。'), cut.lastIndexOf('\n')); return (k > n * 0.5 ? cut.slice(0, k + 1) : cut + '…'); };
+      plan.reply = clip(plan.reply, 220); plan.question = clip(plan.question, 70);
       return res.status(200).json({ ...plan, projects: ctx.projects });
     }
 
@@ -225,9 +228,17 @@ export async function factory(req, res) {
       if (f.kind) props['種類'] = { select: { name: pick(f.kind, KINDS, '単発') } };
       if (f.repeat) props['繰り返し'] = { select: { name: pick(f.repeat, REPEATS, 'なし') } };
       if (f.energy) props['エネルギー'] = { select: { name: pick(f.energy, ENERGY, 'Mid') } };
+      if (f.project) props['プロジェクト'] = { relation: [{ id: f.project }] };
       await notion(() => `${NOTION}/pages/${b.id}`, 'PATCH', { properties: props });
       return res.status(200).json({ ok: true });
     }
+    if (b.action === 'capture') {
+      // GTD：まず受信箱に入れる（AIは使わない）
+      const t = String(b.title || '').trim().slice(0, 100); if (!t) return res.status(400).json({ error: 'title が空です' });
+      const pg = await notion(() => `${NOTION}/pages`, 'POST', (v) => ({ parent: parent(LINE)(v), properties: { 'タスク': { title: [{ text: { content: t } }] }, '工程': { select: { name: '搬入' } }, '担当': { select: { name: '🧭 Triage' } }, '入力元': { select: { name: b.input === '音声' ? '音声' : '文字' } }, '原文': rtLong(b.title) } }));
+      return res.status(200).json({ id: pg.id });
+    }
+    if (b.action === 'archive') { await notion(() => `${NOTION}/pages/${b.id}`, 'PATCH', { archived: true }); return res.status(200).json({ ok: true }); }
     if (b.action === 'editLog') {
       // 作業ログの時間・結果を直し、タスクの実績分も差分だけ直す
       const min = Math.max(0, Math.round(Number(b.minutes) || 0));

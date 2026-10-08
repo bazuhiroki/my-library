@@ -27,7 +27,7 @@ const nowJst = () => jst().toISOString().replace('Z', '+09:00').replace(/\.\d+\+
 // ---- 費用の上限：Notion「AI利用量」に月ごとの使用量を記録し、上限を超えそうなら AI を呼ばない
 // 月の上限は500円。為替や見積もりのずれに備えて、450円で止める（MIND_BUDGET_YEN で変更可）。
 const USAGE = { ds: process.env.USAGE_DATA_SOURCE_ID || 'f9fd52fd-f5a5-42e8-b5e9-95ebbbcbc24f', db: process.env.USAGE_DATABASE_ID || 'e4c0e0f6877c459fa4e8df80c56de045' };
-const BUDGET_YEN = Math.min(500, Number(process.env.MIND_BUDGET_YEN) || 450);
+const BUDGET_YEN = Math.min(1000, Number(process.env.MIND_BUDGET_YEN) || 950); // エルフと工場長の合算
 const YEN_PER_USD = Number(process.env.YEN_PER_USD) || 170; // 実際より高めに見積もる
 const PRICE = { // 1M トークンあたりのドル（出力には思考トークンも含む）
   'gemini-2.5-flash': [0.30, 2.50], 'gemini-2.5-flash-lite': [0.10, 0.40],

@@ -65,7 +65,7 @@ export function createFactory({ scene, colliders, world, toast }) {
   // 搬入口（ドワーフの持ち場）
   box(wood, 2.6, 0.9, 1.4, x0 + 2.4, 0.45, z0 + 2.4); colliders.push({ x0: x0 + 1, x1: x0 + 3.8, z0: z0 + 1.6, z1: z0 + 3.2 });
   const dockTex = canvasTex(256, 64, (g, w, h) => { g.fillStyle = '#2a2420'; g.fillRect(0, 0, w, h); g.fillStyle = '#f2e8d8'; g.font = '700 36px sans-serif'; g.textAlign = 'center'; g.fillText('搬入口', w / 2, 46); });
-  const dockSign = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.35), new THREE.MeshBasicMaterial({ map: dockTex })); dockSign.position.set(x0 + 2.4, 1.5, z0 + 1.65); dockSign.rotation.y = Math.PI; root.add(dockSign); pickable(dockSign, { tab: 'dwarf' });
+  const dockSign = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.35), new THREE.MeshBasicMaterial({ map: dockTex })); dockSign.position.set(x0 + 2.4, 1.5, z0 + 1.65); dockSign.rotation.y = Math.PI; root.add(dockSign); pickable(dockSign, { tab: 'inbox' });
   // コンベア（帯の模様が流れる）
   const beltTex = canvasTex(64, 64, (g) => { g.fillStyle = '#1c1c1e'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#2c2c30'; for (let i = 0; i < 64; i += 16) g.fillRect(i, 0, 8, 64); });
   beltTex.wrapS = beltTex.wrapT = THREE.RepeatWrapping; beltTex.repeat.set(10, 1);
@@ -77,7 +77,7 @@ export function createFactory({ scene, colliders, world, toast }) {
     const x = x0 + 19.6 + i * 1.15;
     const lane = box(beltMat, 0.9, 0.12, 4.2, x, 0.8, z0 + 7.6); box(steel, 0.8, 0.75, 4.2, x, 0.37, z0 + 7.6, false);
     const tag = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.08, 0.3), glow(l.c, i === 0 ? 0.9 : 0.15)); tag.position.set(x, 0.92, z0 + 5.6); root.add(tag);
-    pickable(lane, { tab: 'now' });
+    pickable(lane, { tab: 'today' });
     return { x, tag, crates: [] };
   });
   colliders.push({ x0: x0 + 19.1, x1: x0 + 23.5, z0: z0 + 5.4, z1: z0 + 9.8 });
@@ -94,7 +94,7 @@ export function createFactory({ scene, colliders, world, toast }) {
     const stack = new THREE.Group(); stack.position.set(0, 1.0, 0.45); g.add(stack);
     const lbl = canvasTex(256, 64, (c, w, h) => { c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(0, 0, w, h); c.fillStyle = '#fff'; c.font = '700 34px sans-serif'; c.textAlign = 'center'; c.fillText(a, w / 2, 44); });
     const plate = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.25), new THREE.MeshBasicMaterial({ map: lbl, transparent: true })); plate.position.set(0, 1.75, 0); plate.rotation.y = Math.PI; g.add(plate);
-    pickable(body, { tab: 'all' });
+    pickable(body, { tab: 'projects' });
     colliders.push({ x0: g.position.x - 0.35, x1: g.position.x + 0.35, z0: g.position.z - 0.3, z1: g.position.z + 0.3 });
     return { g, stack, head, a };
   });
@@ -106,14 +106,25 @@ export function createFactory({ scene, colliders, world, toast }) {
   // 作業台（自分の机）
   const bench = box(wood, 4.2, 0.12, 1.6, cx - 3, 0.95, z1 - 4); [-1.9, 1.9].forEach((dx) => [-0.6, 0.6].forEach((dz) => box(steel, 0.1, 0.9, 0.1, cx - 3 + dx, 0.45, z1 - 4 + dz, false)));
   const benchLamp = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.3, 16, 1, true), glow(0xffd9a0, 0.8)); benchLamp.position.set(cx - 3, 2.3, z1 - 4); root.add(benchLamp);
-  pickable(bench, { tab: 'now' }); colliders.push({ x0: cx - 5.2, x1: cx - 0.8, z0: z1 - 4.9, z1: z1 - 3.1 });
+  pickable(bench, { tab: 'today' }); colliders.push({ x0: cx - 5.2, x1: cx - 0.8, z0: z1 - 4.9, z1: z1 - 3.1 });
   // 検品台と出荷口
-  const inspect = box(wood, 2, 0.1, 1.2, x0 + 2.2, 0.9, z1 - 5); box(steel, 1.9, 0.85, 1.1, x0 + 2.2, 0.42, z1 - 5, false); pickable(inspect, { tab: 'all' });
+  const inspect = box(wood, 2, 0.1, 1.2, x0 + 2.2, 0.9, z1 - 5); box(steel, 1.9, 0.85, 1.1, x0 + 2.2, 0.42, z1 - 5, false); pickable(inspect, { tab: 'projects' });
   colliders.push({ x0: x0 + 1.1, x1: x0 + 3.3, z0: z1 - 5.7, z1: z1 - 4.3 });
   const shipped = []; for (let i = 0; i < 12; i++) { const c = new THREE.Mesh(crateGeo, std({ color: 0x5f8f5a, roughness: 0.85 })); c.position.set(x0 + 1.2 + (i % 4) * 0.6, 0.2 + Math.floor(i / 4) * 0.42, z1 - 1.2); c.visible = false; root.add(c); shipped.push(c); }
   const shipTex = canvasTex(256, 64, (g, w, h) => { g.fillStyle = '#1d2a1c'; g.fillRect(0, 0, w, h); g.fillStyle = '#cfe8c8'; g.font = '700 36px sans-serif'; g.textAlign = 'center'; g.fillText('出荷口', w / 2, 46); });
-  const shipSign = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.35), new THREE.MeshBasicMaterial({ map: shipTex })); shipSign.position.set(x0 + 2.1, 2.2, z1 - 0.2); shipSign.rotation.y = Math.PI; root.add(shipSign); pickable(shipSign, { tab: 'all' });
+  const shipSign = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.35), new THREE.MeshBasicMaterial({ map: shipTex })); shipSign.position.set(x0 + 2.1, 2.2, z1 - 0.2); shipSign.rotation.y = Math.PI; root.add(shipSign); pickable(shipSign, { tab: 'projects' });
   colliders.push({ x0: x0 + 0.6, x1: x0 + 3.6, z0: z1 - 1.7, z1: z1 - 0.6 });
+  // 製品倉庫：これまでに出荷した製品が棚に並んでいく（仕事＝青、プライベート＝緑）。10個ごとに工場のレベルが上がる
+  const rackMat = std({ color: 0x3a2e24, roughness: 0.9 });
+  for (let lv = 0; lv < 3; lv++) box(rackMat, 0.7, 0.06, 4.2, x0 + 0.6, 0.35 + lv * 0.7, z0 + 6.6, false);
+  [z0 + 4.5, z0 + 8.7].forEach((z) => box(rackMat, 0.7, 2.1, 0.08, x0 + 0.6, 1.05, z, false));
+  colliders.push({ x0: x0, x1: x0 + 1.0, z0: z0 + 4.4, z1: z0 + 8.8 });
+  const workMat = std({ color: 0x4a6f9a, roughness: 0.8 }), lifeMat = std({ color: 0x4f8a5a, roughness: 0.8 });
+  const products = []; for (let lv = 0; lv < 3; lv++) for (let i = 0; i < 8; i++) { const c = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.36, 0.42), workMat); c.position.set(x0 + 0.6, 0.57 + lv * 0.7, z0 + 4.85 + i * 0.5); c.visible = false; root.add(c); products.push(c); pickable(c, { tab: 'shelf' }); }
+  const lvCanvas = document.createElement('canvas'); lvCanvas.width = 512; lvCanvas.height = 160; const lvTex = new THREE.CanvasTexture(lvCanvas);
+  const lvSign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.75), new THREE.MeshBasicMaterial({ map: lvTex })); lvSign.position.set(x0 + 0.22, 2.75, z0 + 6.6); lvSign.rotation.y = Math.PI / 2; root.add(lvSign); pickable(lvSign, { tab: 'shelf' });
+  const sparks = []; const sparkMat = new THREE.SpriteMaterial({ color: 0xffd27a, transparent: true, depthWrite: false });
+  function celebrate() { for (let i = 0; i < 26; i++) { const sp = new THREE.Sprite(sparkMat.clone()); sp.scale.set(0.12, 0.12, 1); sp.position.set(x0 + 2.1, 1.2, z1 - 1.6); sp.userData.v = new THREE.Vector3((Math.random() - 0.5) * 3, 2 + Math.random() * 3, (Math.random() - 0.5) * 3); sp.userData.t = 0; root.add(sp); sparks.push(sp); } }
   // 煙突の蒸気（今日の出荷が多いほど増える）
   const steamTex = canvasTex(64, 64, (g) => { const r = g.createRadialGradient(32, 32, 2, 32, 32, 30); r.addColorStop(0, 'rgba(235,235,235,.85)'); r.addColorStop(1, 'rgba(235,235,235,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); });
   const puffs = []; for (let i = 0; i < 14; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: steamTex, transparent: true, depthWrite: false, opacity: 0 })); s.position.set(x1 - 2.5, 12.3, z1 - 2.5); root.add(s); puffs.push({ s, t: i / 14 }); }
@@ -162,6 +173,10 @@ export function createFactory({ scene, colliders, world, toast }) {
     shipped.forEach((c, i) => { c.visible = i < Math.min(12, weekShip); });
     redLamp.emissive.set(o.some((t) => (t.priority || '').startsWith('①')) ? 0xff2a1a : 0x441010); redLamp.emissiveIntensity = o.some((t) => (t.priority || '').startsWith('①')) ? 2 : 0.3;
     greenLamp.emissive.set(sd ? 0x36e07a : 0x0e3a1c); greenLamp.emissiveIntensity = sd ? 1.6 : 0.3;
+    const tot = data.totals || { total: 0, work: 0 }; const lv = 1 + Math.floor(tot.total / 10);
+    products.forEach((c, i) => { c.visible = i < Math.min(24, tot.total); c.material = i < Math.round(Math.min(24, tot.total) * (tot.total ? tot.work / tot.total : 1)) ? workMat : lifeMat; });
+    const g2 = lvCanvas.getContext('2d'); g2.fillStyle = '#1a1410'; g2.fillRect(0, 0, 512, 160); g2.strokeStyle = '#d2a978'; g2.lineWidth = 6; g2.strokeRect(6, 6, 500, 148);
+    g2.fillStyle = '#f2e8d8'; g2.textAlign = 'center'; g2.font = '700 52px sans-serif'; g2.fillText('製品倉庫　Lv.' + lv, 256, 70); g2.font = '32px sans-serif'; g2.fillText('累計 ' + tot.total + ' 個・次のLvまで ' + (10 - (tot.total % 10)) + ' 個', 256, 124); lvTex.needsUpdate = true;
     drawBoard();
   }
   function drawBoard() {
@@ -208,12 +223,12 @@ export function createFactory({ scene, colliders, world, toast }) {
   document.body.append(el);
   const alertEl = document.createElement('div'); alertEl.id = 'fcAlert'; document.body.append(alertEl);
   const timerEl = document.createElement('button'); timerEl.id = 'fcTimer'; timerEl.type = 'button'; document.body.append(timerEl);
-  timerEl.addEventListener('click', () => openPanel({ tab: 'now' }));
+  timerEl.addEventListener('click', () => openPanel({ tab: 'today' }));
   const $ = (id) => document.getElementById(id);
   const h = (tag, cls, t) => { const e = document.createElement(tag); if (cls) e.className = cls; if (t !== undefined) e.textContent = t; return e; };
   const btn = (p, label, fn, main) => { const b = h('button', 'fc-btn' + (main ? ' main' : ''), label); b.type = 'button'; b.addEventListener('click', fn); p.append(b); return b; };
-  const TABS = [['all', '全体'], ['now', 'いま'], ['next', 'これから'], ['dwarf', '工場長に聞く']];
-  let tab = 'all', detail = null;
+  const TABS = [['inbox', '受信箱'], ['today', '今日'], ['next', 'これから'], ['projects', 'プロジェクト'], ['dwarf', '工場長']];
+  let tab = 'today', detail = null;
   const chat = { messages: [], plan: null, thinking: false, input: '文字' };
     let timer = null; try { timer = JSON.parse(localStorage.getItem(TIMER) || 'null'); } catch (e) { timer = null; }
 
@@ -223,7 +238,8 @@ export function createFactory({ scene, colliders, world, toast }) {
     const body = $('fcBody'); body.innerHTML = '';
     if (!data) { body.append(h('p', 'fc-note', '工場のデータを読み込み中…')); return; }
     if (detail) { renderDetail(body); return; }
-    ({ all: renderAll, now: renderNow, next: renderNext, dwarf: renderDwarf })[tab](body);
+    if (tab !== 'dwarf') captureBar(body);
+    ({ inbox: renderInbox, today: renderToday, next: renderNext, projects: renderProjects, dwarf: renderDwarf })[tab](body);
   }
 
   // 工場長と話す → 案を見る → 搬入
@@ -275,32 +291,29 @@ export function createFactory({ scene, colliders, world, toast }) {
   const hasChildren = (t) => data.tasks.some((x) => x.parents.includes(t.id) && x.stage !== '出荷済み');
   const card = (t, acts) => {
     const b = h('div', 'fc-t'); b.style.setProperty('--c', (t.priority || '').startsWith('①') ? '#c8352b' : AREA_C[t.area] || '#8a7a6a');
-    b.append(h('b', '', t.title), h('span', '', linkLabel(t)), h('span', '', [t.est ? t.est + '分' : '', t.plan ? '予定' + t.plan.slice(5, 10) : '', t.due ? '⚑' + t.due.slice(5, 10) : '', t.postponed >= 3 ? '後回し' + t.postponed + '回' : ''].filter(Boolean).join('・')));
+    b.append(h('b', '', t.title), h('span', '', linkLabel(t)), h('span', '', [t.plan ? '🕒' + when(t.plan) : '', t.est ? t.est + '分' : '', t.due ? '⚑' + t.due.slice(5, 10) : '', t.postponed >= 3 ? '後回し' + t.postponed + '回' : ''].filter(Boolean).join('・')));
     if (t.next) b.append(h('span', '', '次の一手：' + t.next));
     if (acts) { const a = h('div', 'fc-acts'); acts(a); b.append(a); }
     b.style.cursor = 'pointer'; b.addEventListener('click', (e) => { if (e.target.closest('button,input,a')) return; detail = { kind: 'task', id: t.id }; render(); });
     return b;
   };
-  // 全体：プロジェクトと進み具合
-  function renderAll(body) {
-    const all = data.tasks;
-    const inProj = (t, p) => (projectOf(t) || {}).name === p.name;
-    if (!data.projects.length) body.append(h('p', 'fc-note', 'まだプロジェクトはない。工場長に「こんなことをやりたい」と話せば、プロジェクトにまとめてくれる。'));
+  // プロジェクト：いくつあって、どこまで進んでいるか
+  function renderProjects(body) {
+    const all = data.tasks; const inProj = (t, p) => (projectOf(t) || {}).name === p.name;
+    const o = open();
+    body.append(h('div', 'fc-lab', `進行中のプロジェクト ${data.projects.length}件・手元のタスク ${o.length}件（うち つながりなし ${o.filter((t) => !projectOf(t)).length}件）`));
+    if (!data.projects.length) body.append(h('p', 'fc-note', 'まだプロジェクトはない。工場長に「こんなことをやりたい」と話せば、まとめてくれる。'));
     data.projects.forEach((p) => {
       const ts = all.filter((t) => inProj(t, p) && !hasChildren(t)); const done = ts.filter((t) => t.stage === '出荷済み').length; const pct = ts.length ? Math.round((done / ts.length) * 100) : 0;
-      const nxt = ts.filter((t) => t.stage !== '出荷済み').sort((a2, b2) => (a2.plan || a2.due || '9').localeCompare(b2.plan || b2.due || '9'))[0];
+      const nxt = ts.filter((t) => t.stage !== '出荷済み').sort((a2, b2) => sk(a2).localeCompare(sk(b2)))[0];
       const c = h('div', 'fc-t'); c.style.setProperty('--c', AREA_C[p.area] || '#8a7a6a');
       const bar = h('div'); bar.style.cssText = 'height:6px;border-radius:3px;background:rgba(255,255,255,.08);margin:6px 0;overflow:hidden'; const fill = h('div'); fill.style.cssText = 'height:100%;width:' + pct + '%;background:#d2a978'; bar.append(fill);
-      c.append(h('b', '', '📦 ' + p.name), bar, h('span', '', `${pct}%（${done}/${ts.length}）${p.due ? '・⚑' + p.due.slice(5, 10) : ''}${p.area ? '・' + p.area : ''}`), h('span', '', nxt ? '次：' + nxt.title : 'いまは手を動かすものがない'));
+      c.append(h('b', '', '📦 ' + p.name), bar, h('span', '', `${pct}%（${done}/${ts.length}）${p.due ? '・⚑' + p.due.slice(5, 10) : ''}${p.area ? '・' + p.area : ''}`), h('span', '', nxt ? '次：' + nxt.title + (nxt.plan ? '（' + when(nxt.plan) + '）' : '') : 'いまは手を動かすものがない'));
       c.style.cursor = 'pointer'; c.addEventListener('click', () => { detail = { kind: 'project', id: p.id }; render(); });
       body.append(c);
     });
-    const loose = all.filter((t) => !projectOf(t) && t.stage !== '出荷済み' && !t.parents.length);
-    body.append(h('div', 'fc-lab', `プロジェクトにつながらないもの　${loose.length}件（単発 ${loose.filter((t) => t.kind !== '定型').length}・定型 ${loose.filter((t) => t.kind === '定型').length}）`));
-    loose.slice(0, 12).forEach((t) => body.append(card(t)));
-    const logs = data.logs || []; const td = logs.filter((l) => (l.start || '').slice(0, 10) === today()).reduce((a2, l) => a2 + (l.min || 0), 0);
-    const wk = logs.filter((l) => (l.start || '') >= ymd(new Date(Date.now() - 7 * 86400e3))).reduce((a2, l) => a2 + (l.min || 0), 0);
-    body.append(h('div', 'fc-lab', `作業した時間：今日 ${td}分・この7日 ${wk}分　出荷：今日 ${shippedToday()}件`));
+    const loose = o.filter((t) => !projectOf(t) && !t.parents.length && t.stage !== '搬入').sort((a2, b2) => sk(a2).localeCompare(sk(b2)));
+    if (loose.length) { body.append(h('div', 'fc-lab', 'プロジェクトにつながらないもの（単発・定型）')); loose.slice(0, 12).forEach((t) => body.append(card(t))); }
   }
   // ---- 詳細：プロジェクト（親→子→孫のツリー）とタスク（実行・状況確認）
   const STAGE_C = { 搬入: '#8a8a8a', 仕分け済み: '#4a7fd1', 計画済み: '#8a6ad1', 作業中: '#e08a3a', 検品待ち: '#d1b84a', 出荷済み: '#3fa36b', 保留: '#666' };
@@ -349,14 +362,14 @@ export function createFactory({ scene, colliders, world, toast }) {
     const seg = (list, k2, empty) => { const c = h('div', 'fc-chips'); list.forEach((v) => { const b = h('button', '', v || empty); b.type = 'button'; b.setAttribute('aria-pressed', f[k2] === v ? 'true' : 'false'); b.addEventListener('click', () => { f[k2] = v; c.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', x === b ? 'true' : 'false')); }); c.append(b); }); return c; };
     field('タスク名', inp('text', 'title'));
     field('見積分', inp('number', 'est')); field('実績分（作業した合計。直接直せます）', inp('number', 'actual'));
-    field('予定日', inp('date', 'plan')); field('期限', inp('date', 'due'));
+    const sch = h('div'); const pd = inp('date', 'plan'); const ptm = h('input', 'fc-ta'); ptm.type = 'time'; ptm.value = hasTime(t.plan) ? t.plan.slice(11, 16) : ''; ptm.style.minHeight = '40px'; ptm.addEventListener('input', () => { f.time = ptm.value; }); f.time = ptm.value; sch.append(pd, ptm); field('予定（日付と時刻）', sch); field('期限', inp('date', 'due'));
     const nx = h('textarea', 'fc-ta'); nx.value = f.next; nx.addEventListener('input', () => { f.next = nx.value; }); field('次の一手', nx);
     field('領域', seg(['仕事', 'プライベート'], 'area')); field('優先度', seg(['① 緊急×重要', '② 重要', '③ 緊急', '④ 後回し', ''], 'priority', 'なし'));
     field('種類', seg(['単発', '定型', 'プロジェクト'], 'kind')); field('繰り返し', seg(['なし', '毎日', '平日', '毎週', '毎月'], 'repeat')); field('エネルギー', seg(['High', 'Mid', 'Low'], 'energy'));
     const a = h('div', 'fc-acts'); body.append(a);
     btn(a, '保存する', async () => {
       if (!String(f.title).trim()) { toast('タスク名を入れてください'); return; }
-      try { await api('/api/factory', { method: 'POST', body: JSON.stringify({ action: 'update', id: t.id, fields: { ...f, title: f.title.trim() } }) }); toast('保存しました'); await load(); detail = detail.from || { kind: 'task', id: t.id }; render(); }
+      try { await api('/api/factory', { method: 'POST', body: JSON.stringify({ action: 'update', id: t.id, fields: { ...f, plan: f.plan ? (f.time ? `${f.plan}T${f.time}:00+09:00` : f.plan) : '', title: f.title.trim() } }) }); toast('保存しました'); await load(); detail = detail.from || { kind: 'task', id: t.id }; render(); }
       catch (e) { toast('保存できませんでした：' + String(e.message).slice(0, 60)); }
     }, true);
   }
@@ -380,7 +393,7 @@ export function createFactory({ scene, colliders, world, toast }) {
     const t = byId(detail.id); if (!t) { body.append(h('p', 'fc-note', '見つかりませんでした。')); return; }
     const head = h('div'); head.append(badge(t.stage), h('b', '', t.title)); body.append(head);
     body.append(h('div', 'fc-lab', linkLabel(t)));
-    const info = [['優先度', t.priority || '（Triage待ち）'], ['領域・種類', [t.area, t.kind, t.repeat && t.repeat !== 'なし' ? t.repeat : ''].filter(Boolean).join('・')], ['予定日', t.plan ? t.plan.slice(0, 10) : '未定'], ['期限', t.due ? t.due.slice(0, 10) : 'なし'], ['見積・実績', (t.est || '—') + '分 ／ ' + (t.actual || 0) + '分'], ['エネルギー', t.energy || '—'], ['担当', t.owner || '—'], ['後回し', (t.postponed || 0) + '回']];
+    const info = [['優先度', t.priority || '（Triage待ち）'], ['領域・種類', [t.area, t.kind, t.repeat && t.repeat !== 'なし' ? t.repeat : ''].filter(Boolean).join('・')], ['予定', t.plan ? when(t.plan) : '未定'], ['期限', t.due ? t.due.slice(0, 10) : 'なし'], ['見積・実績', (t.est || '—') + '分 ／ ' + (t.actual || 0) + '分'], ['エネルギー', t.energy || '—'], ['担当', t.owner || '—'], ['後回し', (t.postponed || 0) + '回']];
     const tb = h('div', 'fc-tree'); info.forEach(([k, v]) => tb.append(h('div', '', k + '：' + v))); body.append(tb);
     if (t.next) body.append(h('div', 'fc-lab', '次の一手：' + t.next));
     const par = t.parents.map(byId).filter(Boolean);
@@ -402,15 +415,52 @@ export function createFactory({ scene, colliders, world, toast }) {
       if (timer && timer.id === t.id) btn(a, '作業中（止める）', () => { detail = null; tab = 'now'; render(); }, true);
       else if (!hasChildren(t)) btn(a, '始める', () => { detail = null; tab = 'now'; startTimer(t); }, true);
       btn(a, '終わった', () => ship(t)); btn(a, '検品待ちへ', () => setTask(t, { stage: '検品待ち' })); btn(a, t.stage === '保留' ? '保留を解く' : '保留', () => setTask(t, { stage: t.stage === '保留' ? '計画済み' : '保留' }));
-      const inp = h('input', 'fc-ta'); inp.type = 'date'; inp.style.cssText = 'min-height:38px;width:auto'; inp.value = (t.plan || '').slice(0, 10); inp.addEventListener('change', () => setTask(t, { plan: inp.value })); a.append(h('span', 'fc-note', '予定日'), inp);
+      body.append(schedInput(t));
     } else btn(a, '作業中に戻す', () => setTask(t, { stage: '作業中' }));
     btn(a, '編集する', () => { detail = { kind: 'edit', id: t.id, from: detail }; render(); });
     btn(a, '複製する', () => { detail = { kind: 'dup', id: t.id, from: detail }; render(); });
     btn(a, '工場長に相談', () => { detail = null; tab = 'dwarf'; talk('「' + t.title + '」について相談したい。いまの状況と次にやることを教えて'); });
     const n = h('a', 'fc-btn', 'Notionで開く'); n.href = 'https://www.notion.so/' + t.id.replace(/-/g, ''); n.target = '_blank'; n.rel = 'noopener'; n.style.cssText = 'display:inline-flex;align-items:center;text-decoration:none'; a.append(n);
   }
-  // いま：今日やること（タイマーで作業）
-  function renderNow(body) {
+  // ---- 時刻つきの予定：並べ順は「時刻のある予定 → 時刻なし」、早いものが上
+  const hasTime = (d) => /T\d{2}:\d{2}/.test(d || '');
+  const sk = (t) => (t.plan ? t.plan.slice(0, 10) + (hasTime(t.plan) ? t.plan.slice(11, 16) : '99:99') : '9999') + ((t.priority || '④')[0]);
+  const when = (d) => { if (!d) return ''; const dd = d.slice(5, 10).replace('-', '/'); return (d.slice(0, 10) === today() ? '今日' : dd) + (hasTime(d) ? ' ' + d.slice(11, 16) : ''); };
+  const nowHM = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(11, 16);
+  function schedInput(t, done) {
+    const w = h('div', 'fc-acts'); w.style.margin = '6px 0';
+    const d = h('input', 'fc-ta'); d.type = 'date'; d.value = (t.plan || '').slice(0, 10); d.style.cssText = 'min-height:36px;width:auto';
+    const tm = h('input', 'fc-ta'); tm.type = 'time'; tm.value = hasTime(t.plan) ? t.plan.slice(11, 16) : ''; tm.style.cssText = 'min-height:36px;width:auto';
+    const save = () => { const v = d.value ? (tm.value ? `${d.value}T${tm.value}:00+09:00` : d.value) : ''; setTask(t, { plan: v }); if (done) done(v); };
+    d.addEventListener('change', save); tm.addEventListener('change', save);
+    w.append(h('span', 'fc-note', 'いつ'), d, tm); return w;
+  }
+  // どの画面にもある「とりあえず入れる」欄（GTD：まず全部出す）
+  function captureBar(body) {
+    const row = h('div', 'fc-in'); const ta = h('input', 'fc-ta'); ta.placeholder = '思いついたことを、とりあえず入れる'; ta.style.minHeight = '42px';
+    const go = async () => { const v = ta.value.trim(); if (!v) return; ta.value = ''; try { await api('/api/factory', { method: 'POST', body: JSON.stringify({ action: 'capture', title: v }) }); toast('受信箱に入れた'); await load(); } catch (e) { toast(String(e.message).slice(0, 60)); } };
+    ta.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+    const b = h('button', 'fc-btn main', '入れる'); b.type = 'button'; b.addEventListener('click', go); row.append(ta, b); body.append(row);
+  }
+  // 受信箱：入れたものを1つずつ決める（今日やる／いつやる／プロジェクトへ／2分で終わる／いつか／捨てる）
+  function renderInbox(body) {
+    const inbox = open().filter((t) => t.stage === '搬入').sort((a2, b2) => (b2.created || '').localeCompare(a2.created || ''));
+    body.append(h('div', 'fc-lab', `受信箱 ${inbox.length}件　1つずつ「次にどうするか」を決めよう`));
+    if (!inbox.length) body.append(h('p', 'fc-note', '受信箱は空だ。いい状態だな。'));
+    inbox.slice(0, 15).forEach((t) => {
+      const c = card(t, (a) => {
+        btn(a, '今日やる', () => setTask(t, { plan: today(), stage: '計画済み' }), true);
+        btn(a, '2分で終わる→完了', () => ship(t));
+        btn(a, 'いつか', () => setTask(t, { stage: '保留' }));
+        btn(a, '捨てる', async () => { if (!confirm('「' + t.title + '」を捨てますか？')) return; try { await api('/api/factory', { method: 'POST', body: JSON.stringify({ action: 'archive', id: t.id }) }); await load(); } catch (e) { toast(String(e.message).slice(0, 60)); } });
+      });
+      const s2 = schedInput(t); c.append(s2);
+      if (data.projects.length) { const sel = h('select', 'fc-ta'); sel.style.cssText = 'min-height:36px;width:auto'; sel.append(new Option('プロジェクトへ…', '')); data.projects.forEach((p) => sel.append(new Option('📦 ' + p.name, p.id))); sel.addEventListener('change', () => { if (sel.value) setTask(t, { project: sel.value, stage: '仕分け済み' }); }); c.append(sel); }
+      body.append(c);
+    });
+  }
+  // 今日：遅れ → 時刻順の予定 → 時刻なし。いま何をするかが一番上に来る
+  function renderToday(body) {
     if (timer) {
       const t = byId(timer.id) || { title: timer.title, parents: [], projects: [] };
       body.append(h('div', 'fc-lab', '作業中　' + Math.floor((Date.now() - timer.t0) / 60000) + '分'), card(t));
@@ -421,25 +471,32 @@ export function createFactory({ scene, colliders, world, toast }) {
       const a = h('div', 'fc-acts'); body.append(a); btn(a, '止めて記録する', () => stopTimer(st), true);
       return;
     }
-    const o = open().filter((t) => !hasChildren(t));
-    const now = o.filter((t) => (t.plan && t.plan.slice(0, 10) <= today()) || (t.priority || '').startsWith('①') || t.stage === '作業中')
-      .sort((a2, b2) => (b2.stage === '作業中') - (a2.stage === '作業中') || ((a2.priority || '④') < (b2.priority || '④') ? -1 : 1));
-    body.append(h('div', 'fc-lab', `今日やること　${now.length}件・${now.reduce((x, t) => x + (t.est || 0), 0)}分`));
-    if (!now.length) body.append(h('p', 'fc-note', '今日の予定はない。「これから」から前倒しするか、工場長に聞いてみよう。'));
-    now.slice(0, 6).forEach((t) => body.append(card(t, (a) => { btn(a, '始める', () => startTimer(t), true); btn(a, '終わった', () => ship(t)); })));
+    const o = open().filter((t) => !hasChildren(t) && t.stage !== '保留' && t.stage !== '搬入');
+    const late = o.filter((t) => t.plan && t.plan.slice(0, 10) < today()).sort((a2, b2) => sk(a2).localeCompare(sk(b2)));
+    const tday = o.filter((t) => (t.plan || '').slice(0, 10) === today() || (!t.plan && (t.priority || '').startsWith('①'))).sort((a2, b2) => sk(a2).localeCompare(sk(b2)));
+    const mins = [...late, ...tday].reduce((x, t) => x + (t.est || 0), 0);
+    const left = Math.max(0, (24 * 60) - (new Date(Date.now() + 9 * 3600e3).getUTCHours() * 60 + new Date().getMinutes()) - 60 * 1);
+    body.append(h('div', 'fc-lab', `今日 ${late.length + tday.length}件・見積${mins}分${mins > left ? '（今日の残り時間を超えている）' : ''}　出荷 ${shippedToday()}件`));
+    const nowT = nowHM(); const first = [...late, ...tday].find((t) => t.stage === '作業中') || tday.find((t) => !hasTime(t.plan) || t.plan.slice(11, 16) >= nowT) || late[0] || tday[0];
+    if (first) { body.append(h('div', 'fc-lab', '▶ いまやること')); body.append(card(first, (a) => { btn(a, '始める', () => startTimer(first), true); btn(a, '終わった', () => ship(first)); })); }
+    if (late.length) { body.append(h('div', 'fc-lab', '遅れているもの')); late.filter((t) => t !== first).forEach((t) => body.append(card(t, (a) => { btn(a, '今日にする', () => setTask(t, { plan: today() })); btn(a, '始める', () => startTimer(t)); }))); }
+    const rest = tday.filter((t) => t !== first);
+    if (rest.length) { body.append(h('div', 'fc-lab', '今日のこのあと（時刻順）')); rest.forEach((t) => body.append(card(t, (a) => { btn(a, '始める', () => startTimer(t)); btn(a, '終わった', () => ship(t)); }))); }
+    if (!first) body.append(h('p', 'fc-note', '今日の予定はない。受信箱を片付けるか、「これから」から前倒ししよう。'));
     const stuck = o.filter((t) => t.postponed >= 3);
-    if (stuck.length) { body.append(h('div', 'fc-lab', '何度も後回しになっているもの')); stuck.slice(0, 2).forEach((t) => body.append(card(t, (a) => { btn(a, '工場長と小さく分ける', () => { tab = 'dwarf'; talk('「' + t.title + '」がずっと後回しになってる。小さく分けるか、手放すか一緒に決めたい'); }); btn(a, '保留にする', () => setTask(t, { stage: '保留' })); }))); }
+    if (stuck.length) { body.append(h('div', 'fc-lab', '何度も後回しになっているもの')); stuck.slice(0, 2).forEach((t) => body.append(card(t, (a) => { btn(a, '工場長と小さく分ける', () => { tab = 'dwarf'; talk('「' + t.title + '」がずっと後回しになってる。小さく分けるか、手放すか一緒に決めたい'); }); btn(a, 'いつかへ', () => setTask(t, { stage: '保留' })); }))); }
   }
-  // これから：14日間の予定と、日付未定・未仕分け
+  // これから：14日間を日付ごと・時刻順に。日付未定と「いつか」も
   function renderNext(body) {
     const o = open().filter((t) => !hasChildren(t)); const end = ymd(new Date(Date.now() + 14 * 86400e3));
-    const up = o.filter((t) => t.plan && t.plan.slice(0, 10) > today() && t.plan.slice(0, 10) <= end).sort((a2, b2) => a2.plan.localeCompare(b2.plan));
+    const up = o.filter((t) => t.plan && t.plan.slice(0, 10) > today() && t.plan.slice(0, 10) <= end && t.stage !== '保留').sort((a2, b2) => sk(a2).localeCompare(sk(b2)));
     let last = '';
-    up.forEach((t) => { const d = t.plan.slice(0, 10); if (d !== last) { last = d; const dt = new Date(d + 'T00:00:00'); body.append(h('div', 'fc-lab', (dt.getMonth() + 1) + '/' + dt.getDate() + '（' + '日月火水木金土'[dt.getDay()] + '）')); } body.append(card(t, (a) => { btn(a, '今日にする', () => setTask(t, { plan: today() })); })); });
+    up.forEach((t) => { const d = t.plan.slice(0, 10); if (d !== last) { last = d; const dt = new Date(d + 'T00:00:00'); const sum = up.filter((x) => x.plan.slice(0, 10) === d).reduce((x, y) => x + (y.est || 0), 0); body.append(h('div', 'fc-lab', (dt.getMonth() + 1) + '/' + dt.getDate() + '（' + '日月火水木金土'[dt.getDay()] + '）　' + sum + '分')); } body.append(card(t, (a) => { btn(a, '今日にする', () => setTask(t, { plan: today() })); })); });
     if (!up.length) body.append(h('p', 'fc-note', 'この2週間に予定はまだない。'));
-    const undated = o.filter((t) => !t.plan && t.stage !== '搬入'); const inbox = o.filter((t) => t.stage === '搬入');
-    body.append(h('div', 'fc-lab', `日付未定 ${undated.length}件・未仕分け（Notion の Triage 待ち）${inbox.length}件`));
-    undated.slice(0, 5).forEach((t) => body.append(card(t, (a) => { const inp = h('input', 'fc-ta'); inp.type = 'date'; inp.style.minHeight = '36px'; inp.addEventListener('change', () => setTask(t, { plan: inp.value })); a.append(inp); })));
+    const undated = o.filter((t) => !t.plan && !['搬入', '保留'].includes(t.stage));
+    if (undated.length) { body.append(h('div', 'fc-lab', `日付未定 ${undated.length}件（いつやるか決めよう）`)); undated.slice(0, 8).forEach((t) => { const c = card(t); c.append(schedInput(t)); body.append(c); }); }
+    const someday = o.filter((t) => t.stage === '保留');
+    if (someday.length) { body.append(h('div', 'fc-lab', `いつか（保留） ${someday.length}件`)); someday.slice(0, 6).forEach((t) => body.append(card(t, (a) => { btn(a, '動かす', () => setTask(t, { stage: '仕分け済み' })); }))); }
   }
   async function startTimer(t) {
     try { await api('/api/factory', { method: 'POST', body: JSON.stringify({ action: 'start', id: t.id, started: t.started }) }); } catch (e) { toast(String(e.message).slice(0, 60)); return; }
@@ -453,7 +510,7 @@ export function createFactory({ scene, colliders, world, toast }) {
       timer = null; localStorage.removeItem(TIMER); showTimer(); await load();
     } catch (e) { toast('記録できませんでした：' + String(e.message).slice(0, 60)); }
   }
-  async function ship(t) { await setTask(t, { stage: '出荷済み' }); toast('出荷した'); }
+  async function ship(t) { await setTask(t, { stage: '出荷済み' }); celebrate(); toast('出荷！ 累計' + ((data && data.totals && data.totals.total) || 0) + '個目の製品だ'); }
   async function setTask(t, fields) { try { await api('/api/factory', { method: 'POST', body: JSON.stringify({ action: 'update', id: t.id, fields }) }); await load(); } catch (e) { toast(String(e.message).slice(0, 60)); } }
   function showTimer() { timerEl.classList.toggle('on', !!timer); if (timer) timerEl.textContent = '⚒ ' + timer.title.slice(0, 10) + '　' + Math.floor((Date.now() - timer.t0) / 60000) + '分'; }
 
@@ -471,7 +528,7 @@ export function createFactory({ scene, colliders, world, toast }) {
       if ((n || s || st) && localStorage.getItem(SEEN) !== key) {
         alertEl.innerHTML = '';
         const txt = h('span', '', '⚒ ' + [n ? '①が' + n + '件' : '', s ? '期限が近いもの' + s + '件' : '', st ? '後回し' + st + '件' : ''].filter(Boolean).join('・') + '　→ 工場へ');
-        txt.style.cursor = 'pointer'; txt.addEventListener('click', () => { alertEl.classList.remove('on'); localStorage.setItem(SEEN, key); openPanel({ tab: 'now' }); });
+        txt.style.cursor = 'pointer'; txt.addEventListener('click', () => { alertEl.classList.remove('on'); localStorage.setItem(SEEN, key); openPanel({ tab: 'today' }); });
         const x = h('button', '', '×'); x.addEventListener('click', () => { alertEl.classList.remove('on'); localStorage.setItem(SEEN, key); });
         alertEl.append(txt, x); alertEl.classList.add('on');
       }
@@ -486,15 +543,16 @@ export function createFactory({ scene, colliders, world, toast }) {
     crates.forEach((c, i) => { if (c.visible) c.position.x = x0 + 4 + ((i * 1.8 + time * 0.8) % 14.5); });
     puffs.forEach((p, i) => { const on = i < steamCount; p.t = (p.t + dt * 0.12) % 1; p.s.position.set(x1 - 2.5 + Math.sin(p.t * 6 + i) * 0.4 * p.t, 12.3 + p.t * 6, z1 - 2.5 + p.t * 1.5); const sc = 1 + p.t * 3; p.s.scale.set(sc, sc, 1); p.s.material.opacity = on ? (1 - p.t) * 0.6 : 0; });
     robots.forEach((r, i) => { r.head.rotation.y = Math.sin(time * 0.8 + i) * 0.5; });
+    for (let i = sparks.length - 1; i >= 0; i--) { const sp = sparks[i]; sp.userData.t += dt; sp.userData.v.y -= 6 * dt; sp.position.addScaledVector(sp.userData.v, dt); sp.material.opacity = Math.max(0, 1 - sp.userData.t / 1.4); if (sp.userData.t > 1.4) { root.remove(sp); sp.material.dispose(); sparks.splice(i, 1); } }
     tick += dt; if (tick > 15) { tick = 0; showTimer(); }
   }
   const ray = new THREE.Raycaster(); ray.far = 12; const center = new THREE.Vector2();
   const hit = (ndc, camera) => { ray.setFromCamera(ndc || center, camera); const r = ray.intersectObjects(targets, false)[0]; return r ? r.object.userData.fac : null; };
-  const LABEL = { dwarf: ['工場長ドワーフ', '　タップで聞く・話す'], now: ['作業台', '　タップで今やること'], next: ['生産計画ボード', '　タップでこれからの予定'], all: ['全体', '　タップでプロジェクトと進み具合'] };
+  const LABEL = { dwarf: ['工場長ドワーフ', '　タップで聞く・話す'], today: ['作業台', '　タップで今日やること'], next: ['生産計画ボード', '　タップでこれからの予定'], projects: ['プロジェクト', '　タップで全体と進み具合'], inbox: ['搬入口', '　タップで受信箱'], shelf: ['製品倉庫', '　タップで出荷の記録'] };
   return {
     attach, update, open: openPanel, close,
     hint(camera) { const st = hit(null, camera); return st ? LABEL[st.tab] : null; },
-    pick(ndc, camera) { const st = hit(ndc, camera); if (!st) return false; openPanel({ tab: st.tab }); return true; },
+    pick(ndc, camera) { const st = hit(ndc, camera); if (!st) return false; openPanel({ tab: st.tab === 'shelf' ? 'projects' : st.tab }); return true; },
     get openCount() { return open().length; }, get urgentCount() { return open().filter((t) => (t.priority || '').startsWith('①')).length; },
   };
 }
