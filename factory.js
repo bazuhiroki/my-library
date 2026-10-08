@@ -314,8 +314,34 @@ export function createFactory({ scene, colliders, world, toast }) {
     d.addEventListener('click', () => { detail = { kind: 'task', id: t.id }; render(); });
     return [d, ...(depth < 4 ? k.flatMap((x) => row(x, depth + 1)) : [])];
   }
+  // 複製：名前や日付を変えて、同じプロジェクト・同じ親の下に新しく作る（子・孫もまとめて複製できる）
+  function renderDup(body) {
+    const t = byId(detail.id); if (!t) return;
+    const p = projectOf(t); const k = kids(t);
+    const f = { title: t.title, plan: '', due: '', est: t.est || '', next: t.next || '', area: t.area || '仕事', priority: t.priority || '', withKids: k.length > 0 };
+    body.append(h('b', '', '複製して新しく作る'), h('div', 'fc-lab', '元：' + t.title + '　→　' + (p ? '📦 ' + p.name : 'プロジェクトなし') + (t.parents.length ? '・同じ親の下' : '')));
+    const field = (label, el) => { body.append(h('div', 'fc-lab', label), el); return el; };
+    const inp = (type, v, k2) => { const e = h('input', 'fc-ta'); e.type = type; e.value = v; e.style.minHeight = '40px'; e.addEventListener('input', () => { f[k2] = e.value; }); return e; };
+    field('タスク名', inp('text', f.title, 'title'));
+    field('予定日', inp('date', '', 'plan')); field('期限', inp('date', '', 'due')); field('見積分', inp('number', f.est, 'est'));
+    const nx = h('textarea', 'fc-ta'); nx.value = f.next; nx.addEventListener('input', () => { f.next = nx.value; }); field('次の一手', nx);
+    const seg = (list, k2) => { const c = h('div', 'fc-chips'); list.forEach((v) => { const b = h('button', '', v || 'Triageに任せる'); b.type = 'button'; b.setAttribute('aria-pressed', f[k2] === v ? 'true' : 'false'); b.addEventListener('click', () => { f[k2] = v; c.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', x === b ? 'true' : 'false')); }); c.append(b); }); return c; };
+    field('領域', seg(['仕事', 'プライベート'], 'area')); field('優先度', seg(['① 緊急×重要', '② 重要', '③ 緊急', '④ 後回し', ''], 'priority'));
+    if (k.length) { const lb = h('label', 'fc-lab'); const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = true; cb.addEventListener('change', () => { f.withKids = cb.checked; }); lb.append(cb, document.createTextNode(' 子・孫タスク（' + k.length + '件〜）もまとめて複製する')); body.append(lb); }
+    const a = h('div', 'fc-acts'); body.append(a);
+    btn(a, '新しいタスクとして保存', async () => {
+      if (!String(f.title).trim()) { toast('タスク名を入れてください'); return; }
+      const items = [{ key: 'r', title: f.title.trim(), level: t.level || '子', parent: t.parents[0] || '', area: f.area, kind: t.kind, repeat: t.repeat, estimate: Number(f.est) || 0, energy: t.energy, due: f.due, plan: f.plan, next: f.next, priority: f.priority }];
+      if (f.withKids) { let n = 0; const walk = (x, key) => kids(x).forEach((c) => { const ck = 'k' + (n++); items.push({ key: ck, title: c.title, level: c.level, parent: key, area: f.area, kind: c.kind, repeat: c.repeat, estimate: c.est, energy: c.energy, next: c.next, priority: f.priority }); walk(c, ck); }); walk(t, 'r'); }
+      try {
+        const j = await api('/api/factory', { method: 'POST', body: JSON.stringify({ action: 'commit', plan: { project: { existing: p && p.id ? p.id : '' }, items }, raw: '複製：' + t.title, note: '複製元：' + t.title }) });
+        toast(j.created + '件を作りました'); await load(); detail = j.made && j.made.r ? { kind: 'task', id: j.made.r } : null; render();
+      } catch (e) { toast('保存できませんでした：' + String(e.message).slice(0, 60)); }
+    }, true);
+  }
   function renderDetail(body) {
     const back = h('div', 'fc-acts'); btn(back, '‹ もどる', () => { detail = detail.from || null; render(); }); body.append(back);
+    if (detail.kind === 'dup') { renderDup(body); return; }
     if (detail.kind === 'project') {
       const p = data.projects.find((x) => x.id === detail.id); if (!p) { body.append(h('p', 'fc-note', '見つかりませんでした。')); return; }
       const tops = data.tasks.filter((t) => t.projects.includes(p.id) && !t.parents.some((pid) => (byId(pid) || { projects: [] }).projects.includes(p.id)));
@@ -348,6 +374,7 @@ export function createFactory({ scene, colliders, world, toast }) {
       btn(a, '終わった', () => ship(t)); btn(a, '検品待ちへ', () => setTask(t, { stage: '検品待ち' })); btn(a, t.stage === '保留' ? '保留を解く' : '保留', () => setTask(t, { stage: t.stage === '保留' ? '計画済み' : '保留' }));
       const inp = h('input', 'fc-ta'); inp.type = 'date'; inp.style.cssText = 'min-height:38px;width:auto'; inp.value = (t.plan || '').slice(0, 10); inp.addEventListener('change', () => setTask(t, { plan: inp.value })); a.append(h('span', 'fc-note', '予定日'), inp);
     } else btn(a, '作業中に戻す', () => setTask(t, { stage: '作業中' }));
+    btn(a, '複製する', () => { detail = { kind: 'dup', id: t.id, from: detail }; render(); });
     btn(a, '工場長に相談', () => { detail = null; tab = 'dwarf'; talk('「' + t.title + '」について相談したい。いまの状況と次にやることを教えて'); });
     const n = h('a', 'fc-btn', 'Notionで開く'); n.href = 'https://www.notion.so/' + t.id.replace(/-/g, ''); n.target = '_blank'; n.rel = 'noopener'; n.style.cssText = 'display:inline-flex;align-items:center;text-decoration:none'; a.append(n);
   }
