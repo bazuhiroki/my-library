@@ -44,15 +44,15 @@ body:not([data-area=factory]) #fcChip,body:not([data-area=factory]) #fcChip2{dis
   const k2 = mind ? chip('mindChip2', () => mind.open()) : null;
   const t1 = stones ? chip('stChip', () => stones.open({ tab: 'videos' })) : null;
   const t2 = stones ? chip('stChip2', () => stones.open({ tab: 'news' })) : null;
-  const f1 = factory ? chip('fcChip', () => factory.open({ tab: 'dwarf' })) : null;
-  const f2 = factory ? chip('fcChip2', () => factory.open({ tab: 'bench' })) : null;
+  const f1 = factory ? chip('fcChip', () => factory.open({ tab: 'all' })) : null;
+  const f2 = factory ? chip('fcChip2', () => factory.open({ tab: 'now' })) : null;
   // 虫めがねボタンは、その場所の「探す」に替える（映画館なら動画、運動場なら記録）
   let area = '';
   document.addEventListener('click', (e) => {
     const btn = e.target && e.target.closest && e.target.closest('#searchBtn');
     if (!btn || area === 'library' || area === 'outdoor') return;
     e.stopPropagation(); e.preventDefault();
-    if (area === 'cinema') cinema.open(); else if (area === 'museum' && museum) museum.open(); else if (area === 'mind' && mind) mind.open(); else if (area === 'stones' && stones) stones.open({}); else if (area === 'factory' && factory) factory.open({ tab: 'dwarf' }); else sports.open('log');
+    if (area === 'cinema') cinema.open(); else if (area === 'museum' && museum) museum.open(); else if (area === 'mind' && mind) mind.open(); else if (area === 'stones' && stones) stones.open({}); else if (area === 'factory' && factory) factory.open({ tab: 'all' }); else sports.open('log');
   }, true);
   function refresh() {
     const list = cinema.list || [];
@@ -62,7 +62,7 @@ body:not([data-area=factory]) #fcChip,body:not([data-area=factory]) #fcChip2{dis
     const st = sports.weekStats(); const w = (sports.data.weight || [])[0];
     s1.textContent = '今週 ' + st.km.toFixed(1) + 'km・' + st.n + '回';
     s2.textContent = w ? '体重 ' + w.kg + 'kg' : '体重を記録する';
-    if (f1) { f1.textContent = '工場長に話す'; const u = factory.urgentCount; f2.textContent = '作業台' + (u ? '　①' + u + '件' : 'で今やることを選ぶ'); }
+    if (f1) { f1.textContent = '全体を見る'; const u = factory.urgentCount; f2.textContent = '今やること' + (u ? '　①' + u + '件' : ''); }
     if (t1) { const n = stones.newCount; t1.textContent = '新着動画' + (n ? '　' + n + '本' : 'を見る'); t2.textContent = 'ニュースを読む'; }
     if (k1) { k1.textContent = 'エルフと話す'; k2.textContent = '心の記録 ' + (mind.count || 0) + '件'; }
     if (m1) { const ml = museum.list || []; m1.textContent = '展示室の案内をひらく'; m2.textContent = '収蔵 ' + ml.length + '本・観たい ' + ml.filter((x) => x && x.status === '観たい').length + '本'; }

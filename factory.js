@@ -77,7 +77,7 @@ export function createFactory({ scene, colliders, world, toast }) {
     const x = x0 + 19.6 + i * 1.15;
     const lane = box(beltMat, 0.9, 0.12, 4.2, x, 0.8, z0 + 7.6); box(steel, 0.8, 0.75, 4.2, x, 0.37, z0 + 7.6, false);
     const tag = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.08, 0.3), glow(l.c, i === 0 ? 0.9 : 0.15)); tag.position.set(x, 0.92, z0 + 5.6); root.add(tag);
-    pickable(lane, { tab: 'bench' });
+    pickable(lane, { tab: 'now' });
     return { x, tag, crates: [] };
   });
   colliders.push({ x0: x0 + 19.1, x1: x0 + 23.5, z0: z0 + 5.4, z1: z0 + 9.8 });
@@ -94,25 +94,25 @@ export function createFactory({ scene, colliders, world, toast }) {
     const stack = new THREE.Group(); stack.position.set(0, 1.0, 0.45); g.add(stack);
     const lbl = canvasTex(256, 64, (c, w, h) => { c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(0, 0, w, h); c.fillStyle = '#fff'; c.font = '700 34px sans-serif'; c.textAlign = 'center'; c.fillText(a, w / 2, 44); });
     const plate = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.25), new THREE.MeshBasicMaterial({ map: lbl, transparent: true })); plate.position.set(0, 1.75, 0); plate.rotation.y = Math.PI; g.add(plate);
-    pickable(body, { tab: 'whole' });
+    pickable(body, { tab: 'all' });
     colliders.push({ x0: g.position.x - 0.35, x1: g.position.x + 0.35, z0: g.position.z - 0.3, z1: g.position.z + 0.3 });
     return { g, stack, head, a };
   });
   // 生産計画ボード（東の壁一面の黒板）
   const boardCanvas = document.createElement('canvas'); boardCanvas.width = 1024; boardCanvas.height = 512;
   const boardTex = new THREE.CanvasTexture(boardCanvas);
-  const boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(9, 4.5), new THREE.MeshBasicMaterial({ map: boardTex })); boardMesh.position.set(x1 - 0.22, 2.8, cz + 0.5); boardMesh.rotation.y = -Math.PI / 2; root.add(boardMesh); pickable(boardMesh, { tab: 'plan' });
+  const boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(9, 4.5), new THREE.MeshBasicMaterial({ map: boardTex })); boardMesh.position.set(x1 - 0.22, 2.8, cz + 0.5); boardMesh.rotation.y = -Math.PI / 2; root.add(boardMesh); pickable(boardMesh, { tab: 'next' });
   box(wood, 0.12, 4.8, 9.3, x1 - 0.16, 2.8, cz + 0.5, false);
   // 作業台（自分の机）
   const bench = box(wood, 4.2, 0.12, 1.6, cx - 3, 0.95, z1 - 4); [-1.9, 1.9].forEach((dx) => [-0.6, 0.6].forEach((dz) => box(steel, 0.1, 0.9, 0.1, cx - 3 + dx, 0.45, z1 - 4 + dz, false)));
   const benchLamp = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.3, 16, 1, true), glow(0xffd9a0, 0.8)); benchLamp.position.set(cx - 3, 2.3, z1 - 4); root.add(benchLamp);
-  pickable(bench, { tab: 'bench' }); colliders.push({ x0: cx - 5.2, x1: cx - 0.8, z0: z1 - 4.9, z1: z1 - 3.1 });
+  pickable(bench, { tab: 'now' }); colliders.push({ x0: cx - 5.2, x1: cx - 0.8, z0: z1 - 4.9, z1: z1 - 3.1 });
   // 検品台と出荷口
-  const inspect = box(wood, 2, 0.1, 1.2, x0 + 2.2, 0.9, z1 - 5); box(steel, 1.9, 0.85, 1.1, x0 + 2.2, 0.42, z1 - 5, false); pickable(inspect, { tab: 'records' });
+  const inspect = box(wood, 2, 0.1, 1.2, x0 + 2.2, 0.9, z1 - 5); box(steel, 1.9, 0.85, 1.1, x0 + 2.2, 0.42, z1 - 5, false); pickable(inspect, { tab: 'all' });
   colliders.push({ x0: x0 + 1.1, x1: x0 + 3.3, z0: z1 - 5.7, z1: z1 - 4.3 });
   const shipped = []; for (let i = 0; i < 12; i++) { const c = new THREE.Mesh(crateGeo, std({ color: 0x5f8f5a, roughness: 0.85 })); c.position.set(x0 + 1.2 + (i % 4) * 0.6, 0.2 + Math.floor(i / 4) * 0.42, z1 - 1.2); c.visible = false; root.add(c); shipped.push(c); }
   const shipTex = canvasTex(256, 64, (g, w, h) => { g.fillStyle = '#1d2a1c'; g.fillRect(0, 0, w, h); g.fillStyle = '#cfe8c8'; g.font = '700 36px sans-serif'; g.textAlign = 'center'; g.fillText('出荷口', w / 2, 46); });
-  const shipSign = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.35), new THREE.MeshBasicMaterial({ map: shipTex })); shipSign.position.set(x0 + 2.1, 2.2, z1 - 0.2); shipSign.rotation.y = Math.PI; root.add(shipSign); pickable(shipSign, { tab: 'records' });
+  const shipSign = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.35), new THREE.MeshBasicMaterial({ map: shipTex })); shipSign.position.set(x0 + 2.1, 2.2, z1 - 0.2); shipSign.rotation.y = Math.PI; root.add(shipSign); pickable(shipSign, { tab: 'all' });
   colliders.push({ x0: x0 + 0.6, x1: x0 + 3.6, z0: z1 - 1.7, z1: z1 - 0.6 });
   // 煙突の蒸気（今日の出荷が多いほど増える）
   const steamTex = canvasTex(64, 64, (g) => { const r = g.createRadialGradient(32, 32, 2, 32, 32, 30); r.addColorStop(0, 'rgba(235,235,235,.85)'); r.addColorStop(1, 'rgba(235,235,235,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); });
@@ -208,34 +208,27 @@ export function createFactory({ scene, colliders, world, toast }) {
   document.body.append(el);
   const alertEl = document.createElement('div'); alertEl.id = 'fcAlert'; document.body.append(alertEl);
   const timerEl = document.createElement('button'); timerEl.id = 'fcTimer'; timerEl.type = 'button'; document.body.append(timerEl);
-  timerEl.addEventListener('click', () => openPanel({ tab: 'bench' }));
+  timerEl.addEventListener('click', () => openPanel({ tab: 'now' }));
   const $ = (id) => document.getElementById(id);
   const h = (tag, cls, t) => { const e = document.createElement(tag); if (cls) e.className = cls; if (t !== undefined) e.textContent = t; return e; };
   const btn = (p, label, fn, main) => { const b = h('button', 'fc-btn' + (main ? ' main' : ''), label); b.type = 'button'; b.addEventListener('click', fn); p.append(b); return b; };
-  const TABS = [['dwarf', '工場長'], ['bench', '作業台'], ['plan', '計画'], ['whole', '全体像'], ['records', '記録']];
-  let tab = 'dwarf';
+  const TABS = [['all', '全体'], ['now', 'いま'], ['next', 'これから'], ['dwarf', '工場長に聞く']];
+  let tab = 'all';
   const chat = { messages: [], plan: null, thinking: false, input: '文字' };
-  let energy = 'Mid', minutes = 30, calMonth = new Date(), calSel = today(), calMode = 'month';
-  let timer = null; try { timer = JSON.parse(localStorage.getItem(TIMER) || 'null'); } catch (e) { timer = null; }
+    let timer = null; try { timer = JSON.parse(localStorage.getItem(TIMER) || 'null'); } catch (e) { timer = null; }
 
-  const taskCard = (t, extra) => {
-    const b = h('div', 'fc-t'); b.style.setProperty('--c', (t.priority || '').startsWith('①') ? '#c8352b' : AREA_C[t.area] || '#8a7a6a');
-    b.append(h('b', '', t.title), h('span', '', [t.stage, t.area, t.kind, t.est ? '見積' + t.est + '分' : '', t.actual ? '実績' + t.actual + '分' : '', t.plan ? '予定' + t.plan.slice(5, 10) : '', t.due ? '⚑' + t.due.slice(5, 10) : '', t.postponed >= 3 ? '後回し' + t.postponed + '回' : ''].filter(Boolean).join('・')));
-    if (t.next) b.append(h('span', '', '次の一手：' + t.next));
-    if (extra) extra(b); return b;
-  };
   function render() {
     const tabs = $('fcTabs'); tabs.innerHTML = '';
     TABS.forEach(([k, l]) => { const b = h('button', '', l); b.type = 'button'; b.setAttribute('aria-pressed', tab === k ? 'true' : 'false'); b.addEventListener('click', () => { tab = k; render(); }); tabs.append(b); });
     const body = $('fcBody'); body.innerHTML = '';
     if (!data) { body.append(h('p', 'fc-note', '工場のデータを読み込み中…')); return; }
-    ({ dwarf: renderDwarf, bench: renderBench, plan: renderPlan, whole: renderWhole, records: renderRecords })[tab](body);
+    ({ all: renderAll, now: renderNow, next: renderNext, dwarf: renderDwarf })[tab](body);
   }
 
   // 工場長と話す → 案を見る → 搬入
   function renderDwarf(body) {
     const say = (t) => { const d = h('div', 'fc-say'); d.append(h('i', '', '⚒'), h('p', '', t)); return d; };
-    if (!chat.messages.length) body.append(say('よう、来たな。頭の中にあることを、まとめずにそのまま話してくれ。分けるのはこっちの仕事だ。'));
+    if (!chat.messages.length) body.append(say('よう、来たな。やりたいことを話せば分けて載せるし、「今週なにがある？」「あのプロジェクトどうなってる？」と聞けば答えるぞ。'));
     chat.messages.forEach((m) => { if (m.role === 'user') { const d = h('div', 'fc-me'); d.append(h('p', '', m.text)); body.append(d); } else body.append(say(m.text)); });
     if (chat.thinking) body.append(say('…図面を引いてる。'));
     const plan = chat.plan;
@@ -249,7 +242,7 @@ export function createFactory({ scene, colliders, world, toast }) {
       const a = h('div', 'fc-acts'); body.append(a);
       btn(a, 'この形で搬入する', commit, true); btn(a, '作り直す', () => { chat.plan = null; render(); });
     }
-    const row = h('div', 'fc-in'); const ta = h('textarea', 'fc-ta'); ta.placeholder = '例：来週の会議資料を作る。あと毎朝ランニング'; row.append(ta);
+    const row = h('div', 'fc-in'); const ta = h('textarea', 'fc-ta'); ta.placeholder = '例：今週の予定は？／来週の会議資料を作る'; row.append(ta);
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SR) { const mic = h('button', 'fc-btn', '🎤'); mic.type = 'button'; let rec = null; mic.addEventListener('click', () => { if (rec) { rec.stop(); return; } rec = new SR(); rec.lang = 'ja-JP'; rec.interimResults = true; rec.continuous = true; const base = ta.value; rec.onresult = (e) => { let s = ''; for (let i = 0; i < e.results.length; i++) s += e.results[i][0].transcript; ta.value = base + s; chat.input = '音声'; }; rec.onend = () => { rec = null; mic.textContent = '🎤'; }; rec.start(); mic.textContent = '■'; }); row.append(mic); }
     const send = h('button', 'fc-btn main', '話す'); send.type = 'button'; send.addEventListener('click', () => talk(ta.value)); row.append(send);
@@ -274,38 +267,68 @@ export function createFactory({ scene, colliders, world, toast }) {
     } catch (e) { toast('搬入できませんでした：' + String(e.message).slice(0, 60)); }
   }
 
-  // 作業台：いまのエネルギーと時間に合うものを1〜3件
+  // ---- つながり：タスク → プロジェクト（自分か祖先が属するもの）
+  const byId = (id) => data.tasks.find((t) => t.id === id);
+  function projectOf(t, depth = 0) { if (t.projects.length) return data.projects.find((p) => p.id === t.projects[0]) || { name: '（完了したプロジェクト）' }; if (depth > 4) return null; for (const pid of t.parents) { const pt = byId(pid); if (pt) { const r = projectOf(pt, depth + 1); if (r) return r; } } return null; }
+  const linkLabel = (t) => { const p = projectOf(t); return p ? '📦 ' + p.name : t.kind === '定型' ? '🔁 定型' + (t.repeat && t.repeat !== 'なし' ? '（' + t.repeat + '）' : '') + '・つながりなし' : '・単発・つながりなし'; };
   const hasChildren = (t) => data.tasks.some((x) => x.parents.includes(t.id) && x.stage !== '出荷済み');
-  function picks() {
-    const okE = { High: ['High', 'Mid', 'Low'], Mid: ['Mid', 'Low'], Low: ['Low'] }[energy];
-    const pr = (t) => ({ '①': 0, '②': 1, '③': 2, '④': 3 }[(t.priority || '④')[0]] ?? 3);
-    return open().filter((t) => ['計画済み', '仕分け済み', '作業中', '搬入'].includes(t.stage) && !hasChildren(t) && (!t.energy || okE.includes(t.energy)) && (!t.est || t.est <= minutes))
-      .sort((a, b) => (b.stage === '作業中') - (a.stage === '作業中') || ((a.plan || '9') .slice(0, 10) <= today() ? 0 : 1) - ((b.plan || '9').slice(0, 10) <= today() ? 0 : 1) || pr(a) - pr(b) || (a.due || '9').localeCompare(b.due || '9')).slice(0, 3);
+  const card = (t, acts) => {
+    const b = h('div', 'fc-t'); b.style.setProperty('--c', (t.priority || '').startsWith('①') ? '#c8352b' : AREA_C[t.area] || '#8a7a6a');
+    b.append(h('b', '', t.title), h('span', '', linkLabel(t)), h('span', '', [t.est ? t.est + '分' : '', t.plan ? '予定' + t.plan.slice(5, 10) : '', t.due ? '⚑' + t.due.slice(5, 10) : '', t.postponed >= 3 ? '後回し' + t.postponed + '回' : ''].filter(Boolean).join('・')));
+    if (t.next) b.append(h('span', '', '次の一手：' + t.next));
+    if (acts) { const a = h('div', 'fc-acts'); acts(a); b.append(a); }
+    return b;
+  };
+  // 全体：プロジェクトと進み具合
+  function renderAll(body) {
+    const all = data.tasks;
+    const inProj = (t, p) => (projectOf(t) || {}).name === p.name;
+    if (!data.projects.length) body.append(h('p', 'fc-note', 'まだプロジェクトはない。工場長に「こんなことをやりたい」と話せば、プロジェクトにまとめてくれる。'));
+    data.projects.forEach((p) => {
+      const ts = all.filter((t) => inProj(t, p) && !hasChildren(t)); const done = ts.filter((t) => t.stage === '出荷済み').length; const pct = ts.length ? Math.round((done / ts.length) * 100) : 0;
+      const nxt = ts.filter((t) => t.stage !== '出荷済み').sort((a2, b2) => (a2.plan || a2.due || '9').localeCompare(b2.plan || b2.due || '9'))[0];
+      const c = h('div', 'fc-t'); c.style.setProperty('--c', AREA_C[p.area] || '#8a7a6a');
+      const bar = h('div'); bar.style.cssText = 'height:6px;border-radius:3px;background:rgba(255,255,255,.08);margin:6px 0;overflow:hidden'; const fill = h('div'); fill.style.cssText = 'height:100%;width:' + pct + '%;background:#d2a978'; bar.append(fill);
+      c.append(h('b', '', '📦 ' + p.name), bar, h('span', '', `${pct}%（${done}/${ts.length}）${p.due ? '・⚑' + p.due.slice(5, 10) : ''}${p.area ? '・' + p.area : ''}`), h('span', '', nxt ? '次：' + nxt.title : 'いまは手を動かすものがない'));
+      body.append(c);
+    });
+    const loose = all.filter((t) => !projectOf(t) && t.stage !== '出荷済み' && !hasChildren(t));
+    body.append(h('div', 'fc-lab', `プロジェクトにつながらないもの　${loose.length}件（単発 ${loose.filter((t) => t.kind !== '定型').length}・定型 ${loose.filter((t) => t.kind === '定型').length}）`));
+    const logs = data.logs || []; const td = logs.filter((l) => (l.start || '').slice(0, 10) === today()).reduce((a2, l) => a2 + (l.min || 0), 0);
+    const wk = logs.filter((l) => (l.start || '') >= ymd(new Date(Date.now() - 7 * 86400e3))).reduce((a2, l) => a2 + (l.min || 0), 0);
+    body.append(h('div', 'fc-lab', `作業した時間：今日 ${td}分・この7日 ${wk}分　出荷：今日 ${shippedToday()}件`));
   }
-  function renderBench(body) {
+  // いま：今日やること（タイマーで作業）
+  function renderNow(body) {
     if (timer) {
-      body.append(h('div', 'fc-lab', '作業中'));
-      const t = data.tasks.find((x) => x.id === timer.id) || { title: timer.title };
-      body.append(taskCard({ ...t, title: t.title }, (b) => { b.append(h('span', '', '経過 ' + Math.floor((Date.now() - timer.t0) / 60000) + '分')); }));
-      body.append(h('div', 'fc-lab', '止めるとき：どうだった？'));
+      const t = byId(timer.id) || { title: timer.title, parents: [], projects: [] };
+      body.append(h('div', 'fc-lab', '作業中　' + Math.floor((Date.now() - timer.t0) / 60000) + '分'), card(t));
       const st = { result: '進んだ', focus: '中', reason: '' };
       const seg = (list, k) => { const c = h('div', 'fc-chips'); list.forEach((v) => { const b = h('button', '', v); b.type = 'button'; b.setAttribute('aria-pressed', st[k] === v ? 'true' : 'false'); b.addEventListener('click', () => { st[k] = v; c.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', x === b ? 'true' : 'false')); }); c.append(b); }); return c; };
-      body.append(seg(['進んだ', '終わった', '中断', '進まなかった'], 'result'), h('div', 'fc-lab', '集中度'), seg(['高', '中', '低'], 'focus'));
+      body.append(h('div', 'fc-lab', 'どうだった？'), seg(['進んだ', '終わった', '中断', '進まなかった'], 'result'), h('div', 'fc-lab', '集中度'), seg(['高', '中', '低'], 'focus'));
       const r = h('textarea', 'fc-ta'); r.placeholder = '中断・進まなかった理由（あれば）'; r.addEventListener('input', () => { st.reason = r.value; }); body.append(r);
       const a = h('div', 'fc-acts'); body.append(a); btn(a, '止めて記録する', () => stopTimer(st), true);
       return;
     }
-    const o = open(); const urgent = o.filter((t) => (t.priority || '').startsWith('①'));
-    if (urgent.length) { body.append(h('div', 'fc-lab', '今日の ① 緊急×重要')); urgent.slice(0, 3).forEach((t) => body.append(taskCard(t, (b) => { const a = h('div', 'fc-acts'); btn(a, '始める', () => startTimer(t), true); b.append(a); }))); }
-    body.append(h('div', 'fc-lab', 'いまのエネルギー'));
-    const ec = h('div', 'fc-chips'); ['High', 'Mid', 'Low'].forEach((v) => { const b = h('button', '', v); b.type = 'button'; b.setAttribute('aria-pressed', energy === v ? 'true' : 'false'); b.addEventListener('click', () => { energy = v; render(); }); ec.append(b); }); body.append(ec);
-    body.append(h('div', 'fc-lab', '使える時間'));
-    const mc = h('div', 'fc-chips'); [15, 30, 60, 90].forEach((v) => { const b = h('button', '', v + '分'); b.type = 'button'; b.setAttribute('aria-pressed', minutes === v ? 'true' : 'false'); b.addEventListener('click', () => { minutes = v; render(); }); mc.append(b); }); body.append(mc);
-    const p = picks(); body.append(h('div', 'fc-lab', 'いまの自分に合うもの（' + p.length + '件）'));
-    if (!p.length) body.append(h('p', 'fc-note', '合うものがない。時間かエネルギーを変えるか、工場長に分けてもらおう。'));
-    p.forEach((t) => body.append(taskCard(t, (b) => { const a = h('div', 'fc-acts'); btn(a, '始める', () => startTimer(t), true); if (t.stage !== '出荷済み') btn(a, '出荷（完了）', () => ship(t)); b.append(a); })));
+    const o = open().filter((t) => !hasChildren(t));
+    const now = o.filter((t) => (t.plan && t.plan.slice(0, 10) <= today()) || (t.priority || '').startsWith('①') || t.stage === '作業中')
+      .sort((a2, b2) => (b2.stage === '作業中') - (a2.stage === '作業中') || ((a2.priority || '④') < (b2.priority || '④') ? -1 : 1));
+    body.append(h('div', 'fc-lab', `今日やること　${now.length}件・${now.reduce((x, t) => x + (t.est || 0), 0)}分`));
+    if (!now.length) body.append(h('p', 'fc-note', '今日の予定はない。「これから」から前倒しするか、工場長に聞いてみよう。'));
+    now.slice(0, 6).forEach((t) => body.append(card(t, (a) => { btn(a, '始める', () => startTimer(t), true); btn(a, '終わった', () => ship(t)); })));
     const stuck = o.filter((t) => t.postponed >= 3);
-    if (stuck.length) { body.append(h('div', 'fc-lab', '何度も後回しになっているもの')); stuck.slice(0, 3).forEach((t) => body.append(taskCard(t, (b) => { const a = h('div', 'fc-acts'); btn(a, '工場長と小さく分ける', () => { tab = 'dwarf'; talk('「' + t.title + '」がずっと後回しになってる。小さく分けるか、手放すか一緒に決めたい'); }); btn(a, '保留にする', () => setTask(t, { stage: '保留' })); b.append(a); }))); }
+    if (stuck.length) { body.append(h('div', 'fc-lab', '何度も後回しになっているもの')); stuck.slice(0, 2).forEach((t) => body.append(card(t, (a) => { btn(a, '工場長と小さく分ける', () => { tab = 'dwarf'; talk('「' + t.title + '」がずっと後回しになってる。小さく分けるか、手放すか一緒に決めたい'); }); btn(a, '保留にする', () => setTask(t, { stage: '保留' })); }))); }
+  }
+  // これから：14日間の予定と、日付未定・未仕分け
+  function renderNext(body) {
+    const o = open().filter((t) => !hasChildren(t)); const end = ymd(new Date(Date.now() + 14 * 86400e3));
+    const up = o.filter((t) => t.plan && t.plan.slice(0, 10) > today() && t.plan.slice(0, 10) <= end).sort((a2, b2) => a2.plan.localeCompare(b2.plan));
+    let last = '';
+    up.forEach((t) => { const d = t.plan.slice(0, 10); if (d !== last) { last = d; const dt = new Date(d + 'T00:00:00'); body.append(h('div', 'fc-lab', (dt.getMonth() + 1) + '/' + dt.getDate() + '（' + '日月火水木金土'[dt.getDay()] + '）')); } body.append(card(t, (a) => { btn(a, '今日にする', () => setTask(t, { plan: today() })); })); });
+    if (!up.length) body.append(h('p', 'fc-note', 'この2週間に予定はまだない。'));
+    const undated = o.filter((t) => !t.plan && t.stage !== '搬入'); const inbox = o.filter((t) => t.stage === '搬入');
+    body.append(h('div', 'fc-lab', `日付未定 ${undated.length}件・未仕分け（Notion の Triage 待ち）${inbox.length}件`));
+    undated.slice(0, 5).forEach((t) => body.append(card(t, (a) => { const inp = h('input', 'fc-ta'); inp.type = 'date'; inp.style.minHeight = '36px'; inp.addEventListener('change', () => setTask(t, { plan: inp.value })); a.append(inp); })));
   }
   async function startTimer(t) {
     try { await api('/api/factory', { method: 'POST', body: JSON.stringify({ action: 'start', id: t.id, started: t.started }) }); } catch (e) { toast(String(e.message).slice(0, 60)); return; }
@@ -315,56 +338,13 @@ export function createFactory({ scene, colliders, world, toast }) {
     const min = Math.max(1, Math.round((Date.now() - timer.t0) / 60000));
     try {
       await api('/api/factory', { method: 'POST', body: JSON.stringify({ action: 'stop', id: timer.id, title: timer.title, area: timer.area, actual: timer.actual, start: timer.start, end: nowIso(), minutes: min, ...st }) });
-      toast(min + '分を作業ログに残した' + (st.result === '終わった' ? '。出荷だ！' : ''));
+      toast(min + '分を記録した' + (st.result === '終わった' ? '。出荷だ！' : ''));
       timer = null; localStorage.removeItem(TIMER); showTimer(); await load();
     } catch (e) { toast('記録できませんでした：' + String(e.message).slice(0, 60)); }
   }
   async function ship(t) { await setTask(t, { stage: '出荷済み' }); toast('出荷した'); }
   async function setTask(t, fields) { try { await api('/api/factory', { method: 'POST', body: JSON.stringify({ action: 'update', id: t.id, fields }) }); await load(); } catch (e) { toast(String(e.message).slice(0, 60)); } }
   function showTimer() { timerEl.classList.toggle('on', !!timer); if (timer) timerEl.textContent = '⚒ ' + timer.title.slice(0, 10) + '　' + Math.floor((Date.now() - timer.t0) / 60000) + '分'; }
-
-  // 計画：月・週のカレンダー（色＝領域、赤＝①、⚑＝期限）
-  function renderPlan(body) {
-    const mc = h('div', 'fc-chips'); [['month', '月'], ['week', '週']].forEach(([k, l]) => { const b = h('button', '', l); b.type = 'button'; b.setAttribute('aria-pressed', calMode === k ? 'true' : 'false'); b.addEventListener('click', () => { calMode = k; render(); }); mc.append(b); }); body.append(mc);
-    const all = data.tasks; const on = (key) => all.filter((t) => (t.plan || '').slice(0, 10) === key || (t.due || '').slice(0, 10) === key);
-    const cell = (d, dim) => { const key = ymd(d); const list = on(key); const b = h('button'); b.type = 'button'; b.setAttribute('aria-pressed', calSel === key ? 'true' : 'false'); if (dim) b.style.opacity = 0.4; if (key === today()) b.style.borderColor = '#ffd27a'; b.append(h('span', '', String(d.getDate()))); const dots = h('span', 'dots'); list.slice(0, 6).forEach((t) => { const i = h('i'); i.style.background = (t.priority || '').startsWith('①') ? '#c8352b' : t.stage === '出荷済み' ? '#555' : AREA_C[t.area] || '#8a7a6a'; dots.append(i); }); if (list.some((t) => (t.due || '').slice(0, 10) === key)) dots.append(h('span', '', '⚑')); b.append(dots); b.addEventListener('click', () => { calSel = key; render(); }); return b; };
-    const grid = h('div', 'fc-cal'); '日月火水木金土'.split('').forEach((w) => grid.append(h('span', 'fc-note', w)));
-    if (calMode === 'month') {
-      const y = calMonth.getFullYear(), m = calMonth.getMonth(); const first = new Date(y, m, 1); const startD = new Date(y, m, 1 - first.getDay());
-      const nav = h('div', 'fc-acts'); btn(nav, '‹', () => { calMonth = new Date(y, m - 1, 1); render(); }); nav.append(h('b', '', y + '年' + (m + 1) + '月')); btn(nav, '›', () => { calMonth = new Date(y, m + 1, 1); render(); }); body.append(nav);
-      for (let i = 0; i < 42; i++) { const d = new Date(startD.getFullYear(), startD.getMonth(), startD.getDate() + i); grid.append(cell(d, d.getMonth() !== m)); }
-    } else { const n = new Date(); const s = new Date(n.getFullYear(), n.getMonth(), n.getDate() - n.getDay()); for (let i = 0; i < 7; i++) grid.append(cell(new Date(s.getFullYear(), s.getMonth(), s.getDate() + i))); }
-    body.append(grid);
-    const list = on(calSel); const sum = list.filter((t) => (t.plan || '').slice(0, 10) === calSel).reduce((a, t) => a + (t.est || 0), 0);
-    body.append(h('div', 'fc-lab', calSel + '　' + list.length + '件・見積' + sum + '分' + (sum > 240 ? '（詰め込みすぎかも）' : '')));
-    list.forEach((t) => body.append(taskCard(t, (b) => { const inp = h('input', 'fc-ta'); inp.type = 'date'; inp.style.minHeight = '38px'; inp.value = (t.plan || '').slice(0, 10); inp.addEventListener('change', () => setTask(t, { plan: inp.value })); const a = h('div', 'fc-acts'); a.append(h('span', 'fc-note', '予定日を変える')); a.append(inp); b.append(a); })));
-  }
-
-  // 全体像：プロジェクト → 親 → 子 → 孫
-  function renderWhole(body) {
-    const all = data.tasks; const byParent = (id) => all.filter((t) => t.parents.includes(id));
-    const line = (t, depth) => { const kids = byParent(t.id); const done = kids.filter((k) => k.stage === '出荷済み').length; const d = h('div', '', '　'.repeat(depth) + (t.stage === '出荷済み' ? '✓ ' : (t.priority || '').startsWith('①') ? '● ' : '・') + t.title + (kids.length ? `（${done}/${kids.length}）` : '') + (t.due ? '　⚑' + t.due.slice(5, 10) : '')); d.style.color = t.stage === '出荷済み' ? '#7f9a7a' : (t.priority || '').startsWith('①') ? '#ff8a7a' : ''; return [d, ...kids.flatMap((k) => (depth < 4 ? line(k, depth + 1) : []))]; };
-    const tree = h('div', 'fc-tree');
-    data.projects.forEach((p) => { const top = all.filter((t) => t.projects.includes(p.id) && !t.parents.some((pid) => all.find((x) => x.id === pid && x.projects.includes(p.id)))); tree.append(h('div', '', '📦 ' + p.name + '　' + (p.area || '') + (p.due ? '　⚑' + p.due.slice(5, 10) : '')), ...top.flatMap((t) => line(t, 1))); });
-    const loose = all.filter((t) => !t.projects.length && !t.parents.length && t.stage !== '出荷済み');
-    if (loose.length) { tree.append(h('div', '', '— プロジェクトに入っていないもの')); loose.forEach((t) => tree.append(...line(t, 1))); }
-    body.append(tree);
-    body.append(h('div', 'fc-lab', 'エージェント別'));
-    const o = open(); body.append(h('div', 'fc-tree', [...AGENTS, '👤 自分'].map((a) => a + '　' + o.filter((t) => t.owner === a).length + '件').join('\n')));
-  }
-
-  // 記録：作業ログと、見積と実績の差（読みの精度）
-  function renderRecords(body) {
-    const logs = data.logs || []; const td = logs.filter((l) => (l.start || '').slice(0, 10) === today());
-    const sum = (arr) => arr.reduce((a, l) => a + (l.min || 0), 0);
-    const week = logs.filter((l) => (l.start || '') >= ymd(new Date(Date.now() - 7 * 86400e3)));
-    body.append(h('div', 'fc-lab', '今日 ' + sum(td) + '分（仕事' + sum(td.filter((l) => l.area === '仕事')) + '・プライベート' + sum(td.filter((l) => l.area === 'プライベート')) + '）　この7日 ' + sum(week) + '分'));
-    td.forEach((l) => body.append(h('div', 'fc-t', `${(l.start || '').slice(11, 16)}〜　${l.title}　${l.min}分　${l.result}・集中${l.focus}`)));
-    const done = data.tasks.filter((t) => t.stage === '出荷済み' && t.est && t.actual);
-    if (done.length) { const r = done.reduce((a, t) => a + t.actual / t.est, 0) / done.length; body.append(h('div', 'fc-lab', `読みの精度：実績は見積の平均${Math.round(r * 100)}%（${done.length}件）`), h('p', 'fc-note', r > 1.3 ? '見積は少し楽観的。次は少し多めに見てみよう。' : r < 0.8 ? '見積は慎重め。もっと詰めてもいいかもしれない。' : 'いい読みだ。')); }
-    const shippedList = data.tasks.filter((t) => t.stage === '出荷済み').slice(0, 10);
-    if (shippedList.length) { body.append(h('div', 'fc-lab', '最近の出荷')); shippedList.forEach((t) => body.append(taskCard(t))); }
-  }
 
   function openPanel(o) { if (o && o.tab) tab = o.tab; el.classList.add('open'); render(); load(); }
   function close() { el.classList.remove('open'); }
@@ -380,7 +360,7 @@ export function createFactory({ scene, colliders, world, toast }) {
       if ((n || s || st) && localStorage.getItem(SEEN) !== key) {
         alertEl.innerHTML = '';
         const txt = h('span', '', '⚒ ' + [n ? '①が' + n + '件' : '', s ? '期限が近いもの' + s + '件' : '', st ? '後回し' + st + '件' : ''].filter(Boolean).join('・') + '　→ 工場へ');
-        txt.style.cursor = 'pointer'; txt.addEventListener('click', () => { alertEl.classList.remove('on'); localStorage.setItem(SEEN, key); openPanel({ tab: 'bench' }); });
+        txt.style.cursor = 'pointer'; txt.addEventListener('click', () => { alertEl.classList.remove('on'); localStorage.setItem(SEEN, key); openPanel({ tab: 'now' }); });
         const x = h('button', '', '×'); x.addEventListener('click', () => { alertEl.classList.remove('on'); localStorage.setItem(SEEN, key); });
         alertEl.append(txt, x); alertEl.classList.add('on');
       }
@@ -399,7 +379,7 @@ export function createFactory({ scene, colliders, world, toast }) {
   }
   const ray = new THREE.Raycaster(); ray.far = 12; const center = new THREE.Vector2();
   const hit = (ndc, camera) => { ray.setFromCamera(ndc || center, camera); const r = ray.intersectObjects(targets, false)[0]; return r ? r.object.userData.fac : null; };
-  const LABEL = { dwarf: ['工場長ドワーフ', '　タップで話す'], bench: ['作業台', '　タップで今やることを選ぶ'], plan: ['生産計画ボード', '　タップでカレンダー'], whole: ['エージェントのロボット', '　タップで全体像'], records: ['出荷口・検品台', '　タップで記録'] };
+  const LABEL = { dwarf: ['工場長ドワーフ', '　タップで聞く・話す'], now: ['作業台', '　タップで今やること'], next: ['生産計画ボード', '　タップでこれからの予定'], all: ['全体', '　タップでプロジェクトと進み具合'] };
   return {
     attach, update, open: openPanel, close,
     hint(camera) { const st = hit(null, camera); return st ? LABEL[st.tab] : null; },
