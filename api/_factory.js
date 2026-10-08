@@ -215,7 +215,27 @@ export async function factory(req, res) {
       if (f.stage) props['工程'] = { select: { name: f.stage } };
       if (f.stage === DONE) props['出荷日'] = { date: { start: jstDate() } };
       if ('memo' in f) props['出荷メモ'] = rtLong(f.memo);
+      if (f.title) props['タスク'] = { title: [{ text: { content: String(f.title).slice(0, 100) } }] };
+      if ('est' in f) props['見積分'] = { number: f.est === '' || f.est == null ? null : Math.max(0, Math.round(Number(f.est))) };
+      if ('actual' in f) props['実績分'] = { number: Math.max(0, Math.round(Number(f.actual) || 0)) };
+      if ('due' in f) props['期限'] = f.due ? { date: { start: f.due } } : { date: null };
+      if ('next' in f) props['次の一手'] = rtLong(f.next);
+      if (f.area) props['領域'] = { select: { name: pick(f.area, AREAS, '仕事') } };
+      if ('priority' in f) props['優先度'] = f.priority ? { select: { name: f.priority } } : { select: null };
+      if (f.kind) props['種類'] = { select: { name: pick(f.kind, KINDS, '単発') } };
+      if (f.repeat) props['繰り返し'] = { select: { name: pick(f.repeat, REPEATS, 'なし') } };
+      if (f.energy) props['エネルギー'] = { select: { name: pick(f.energy, ENERGY, 'Mid') } };
       await notion(() => `${NOTION}/pages/${b.id}`, 'PATCH', { properties: props });
+      return res.status(200).json({ ok: true });
+    }
+    if (b.action === 'editLog') {
+      // 作業ログの時間・結果を直し、タスクの実績分も差分だけ直す
+      const min = Math.max(0, Math.round(Number(b.minutes) || 0));
+      const props = { '分': { number: min } };
+      if (b.result) props['結果'] = { select: { name: pick(b.result, ['進んだ', '終わった', '中断', '進まなかった'], '進んだ') } };
+      if (b.del) await notion(() => `${NOTION}/pages/${b.logId}`, 'PATCH', { archived: true });
+      else await notion(() => `${NOTION}/pages/${b.logId}`, 'PATCH', { properties: props });
+      if (b.taskId) await notion(() => `${NOTION}/pages/${b.taskId}`, 'PATCH', { properties: { '実績分': { number: Math.max(0, Math.round((Number(b.actual) || 0) - (Number(b.oldMinutes) || 0) + (b.del ? 0 : min))) } } });
       return res.status(200).json({ ok: true });
     }
     return res.status(400).json({ error: 'action が不明です' });

@@ -339,9 +339,31 @@ export function createFactory({ scene, colliders, world, toast }) {
       } catch (e) { toast('保存できませんでした：' + String(e.message).slice(0, 60)); }
     }, true);
   }
+  // 編集：作ったあとでも名前・時間・日付・分け方を自由に直せる
+  function renderEdit(body) {
+    const t = byId(detail.id); if (!t) return;
+    const f = { title: t.title, est: t.est || '', actual: t.actual || 0, plan: (t.plan || '').slice(0, 10), due: (t.due || '').slice(0, 10), next: t.next || '', area: t.area || '仕事', priority: t.priority || '', kind: t.kind || '単発', repeat: t.repeat || 'なし', energy: t.energy || 'Mid' };
+    body.append(h('b', '', '編集する'));
+    const field = (label, el) => { body.append(h('div', 'fc-lab', label), el); return el; };
+    const inp = (type, k2) => { const e = h('input', 'fc-ta'); e.type = type; e.value = f[k2]; e.style.minHeight = '40px'; e.addEventListener('input', () => { f[k2] = e.value; }); return e; };
+    const seg = (list, k2, empty) => { const c = h('div', 'fc-chips'); list.forEach((v) => { const b = h('button', '', v || empty); b.type = 'button'; b.setAttribute('aria-pressed', f[k2] === v ? 'true' : 'false'); b.addEventListener('click', () => { f[k2] = v; c.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', x === b ? 'true' : 'false')); }); c.append(b); }); return c; };
+    field('タスク名', inp('text', 'title'));
+    field('見積分', inp('number', 'est')); field('実績分（作業した合計。直接直せます）', inp('number', 'actual'));
+    field('予定日', inp('date', 'plan')); field('期限', inp('date', 'due'));
+    const nx = h('textarea', 'fc-ta'); nx.value = f.next; nx.addEventListener('input', () => { f.next = nx.value; }); field('次の一手', nx);
+    field('領域', seg(['仕事', 'プライベート'], 'area')); field('優先度', seg(['① 緊急×重要', '② 重要', '③ 緊急', '④ 後回し', ''], 'priority', 'なし'));
+    field('種類', seg(['単発', '定型', 'プロジェクト'], 'kind')); field('繰り返し', seg(['なし', '毎日', '平日', '毎週', '毎月'], 'repeat')); field('エネルギー', seg(['High', 'Mid', 'Low'], 'energy'));
+    const a = h('div', 'fc-acts'); body.append(a);
+    btn(a, '保存する', async () => {
+      if (!String(f.title).trim()) { toast('タスク名を入れてください'); return; }
+      try { await api('/api/factory', { method: 'POST', body: JSON.stringify({ action: 'update', id: t.id, fields: { ...f, title: f.title.trim() } }) }); toast('保存しました'); await load(); detail = detail.from || { kind: 'task', id: t.id }; render(); }
+      catch (e) { toast('保存できませんでした：' + String(e.message).slice(0, 60)); }
+    }, true);
+  }
   function renderDetail(body) {
     const back = h('div', 'fc-acts'); btn(back, '‹ もどる', () => { detail = detail.from || null; render(); }); body.append(back);
     if (detail.kind === 'dup') { renderDup(body); return; }
+    if (detail.kind === 'edit') { renderEdit(body); return; }
     if (detail.kind === 'project') {
       const p = data.projects.find((x) => x.id === detail.id); if (!p) { body.append(h('p', 'fc-note', '見つかりませんでした。')); return; }
       const tops = data.tasks.filter((t) => t.projects.includes(p.id) && !t.parents.some((pid) => (byId(pid) || { projects: [] }).projects.includes(p.id)));
@@ -366,7 +388,15 @@ export function createFactory({ scene, colliders, world, toast }) {
     const k = kids(t); if (k.length) { body.append(h('div', 'fc-lab', `子タスク（${k.filter((x) => x.stage === '出荷済み').length}/${k.length}）`)); k.forEach((x) => body.append(...row(x, 0))); }
     const logs = (data.logs || []).filter((l) => l.task === t.id);
     body.append(h('div', 'fc-lab', '作業ログ ' + logs.length + '回・' + logs.reduce((a2, l) => a2 + (l.min || 0), 0) + '分（直近14日）'));
-    logs.slice(0, 6).forEach((l) => body.append(h('div', 'fc-note', `${(l.start || '').slice(5, 16).replace('T', ' ')}　${l.min}分　${l.result}・集中${l.focus}`)));
+    logs.slice(0, 10).forEach((l) => {
+      const r = h('div', 'fc-acts'); r.style.margin = '4px 0';
+      r.append(h('span', 'fc-note', `${(l.start || '').slice(5, 16).replace('T', ' ')}　${l.result}・集中${l.focus}`));
+      const m = h('input', 'fc-ta'); m.type = 'number'; m.min = 0; m.value = l.min; m.style.cssText = 'min-height:34px;width:76px';
+      r.append(m, h('span', 'fc-note', '分'));
+      btn(r, '直す', async () => { try { await api('/api/factory', { method: 'POST', body: JSON.stringify({ action: 'editLog', logId: l.id, taskId: t.id, minutes: m.value, oldMinutes: l.min, actual: t.actual }) }); toast('作業ログを直しました'); await load(); } catch (e) { toast(String(e.message).slice(0, 60)); } });
+      btn(r, '消す', async () => { if (!confirm('この作業ログを消しますか？')) return; try { await api('/api/factory', { method: 'POST', body: JSON.stringify({ action: 'editLog', del: true, logId: l.id, taskId: t.id, oldMinutes: l.min, actual: t.actual }) }); toast('消しました'); await load(); } catch (e) { toast(String(e.message).slice(0, 60)); } });
+      body.append(r);
+    });
     const a = h('div', 'fc-acts'); body.append(a);
     if (t.stage !== '出荷済み') {
       if (timer && timer.id === t.id) btn(a, '作業中（止める）', () => { detail = null; tab = 'now'; render(); }, true);
@@ -374,6 +404,7 @@ export function createFactory({ scene, colliders, world, toast }) {
       btn(a, '終わった', () => ship(t)); btn(a, '検品待ちへ', () => setTask(t, { stage: '検品待ち' })); btn(a, t.stage === '保留' ? '保留を解く' : '保留', () => setTask(t, { stage: t.stage === '保留' ? '計画済み' : '保留' }));
       const inp = h('input', 'fc-ta'); inp.type = 'date'; inp.style.cssText = 'min-height:38px;width:auto'; inp.value = (t.plan || '').slice(0, 10); inp.addEventListener('change', () => setTask(t, { plan: inp.value })); a.append(h('span', 'fc-note', '予定日'), inp);
     } else btn(a, '作業中に戻す', () => setTask(t, { stage: '作業中' }));
+    btn(a, '編集する', () => { detail = { kind: 'edit', id: t.id, from: detail }; render(); });
     btn(a, '複製する', () => { detail = { kind: 'dup', id: t.id, from: detail }; render(); });
     btn(a, '工場長に相談', () => { detail = null; tab = 'dwarf'; talk('「' + t.title + '」について相談したい。いまの状況と次にやることを教えて'); });
     const n = h('a', 'fc-btn', 'Notionで開く'); n.href = 'https://www.notion.so/' + t.id.replace(/-/g, ''); n.target = '_blank'; n.rel = 'noopener'; n.style.cssText = 'display:inline-flex;align-items:center;text-decoration:none'; a.append(n);
